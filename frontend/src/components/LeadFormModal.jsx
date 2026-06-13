@@ -4,6 +4,13 @@ import client from '../api/client'
 
 const PROFILES = ['Student', 'Fresher', 'Working Professional', 'Business Owner', 'Home Maker']
 const EDUCATION = ['XII', 'UnderGraduate', 'Graduate', 'Post Graduate', 'PHD']
+const SOURCES = [
+  { value: 'web_form', label: 'Web form' },
+  { value: 'referral', label: 'Referral' },
+  { value: 'google_ads', label: 'Google ads' },
+  { value: 'facebook_ads', label: 'Facebook ads' },
+  { value: 'cold_call', label: 'Cold call' },
+]
 
 const cf = (lead, key) => lead?.custom_fields?.[key] ?? ''
 
@@ -18,7 +25,7 @@ export default function LeadFormModal({ lead, stages, canAssign, onClose, onSave
     current_profile: cf(lead, 'current_profile'),
     highest_education: cf(lead, 'highest_education'),
     notes: lead?.notes ?? cf(lead, 'notes'),
-    source: lead?.source ?? 'manual',
+    source: lead?.source ?? '',
     stage_id: lead?.stage_id ?? '',
     owner_id: lead?.owner_id ?? '',
     value: lead?.value ?? '',
@@ -215,42 +222,23 @@ export default function LeadFormModal({ lead, stages, canAssign, onClose, onSave
             <textarea className={inp} rows={3} value={form.notes} onChange={set('notes')} placeholder="Any additional notes…" />
           </div>
 
-          {/* Optional CRM fields (collapsed visually) */}
-          <details className="rounded-lg border border-slate-200">
-            <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700">
-              CRM fields (source, stage, owner, deal value)
-            </summary>
-            <div className="grid grid-cols-2 gap-3 p-3">
-              <div>
-                <label className={label}>Source</label>
-                <select className={inp} value={form.source} onChange={set('source')}>
-                  {['manual', 'web_form', 'referral', 'google_ads', 'facebook_ads', 'cold_call', 'linkedin'].map((s) => (
-                    <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={label}>Stage</label>
-                <select className={inp} value={form.stage_id} onChange={set('stage_id')}>
-                  <option value="">New (default)</option>
-                  {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              {canAssign && (
-                <div>
-                  <label className={label}>Assign to</label>
-                  <select className={inp} value={form.owner_id} onChange={set('owner_id')}>
-                    <option value="">Me</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className={label}>Deal Value (₹)</label>
-                <input className={inp} type="number" min="0" value={form.value} onChange={set('value')} placeholder="0" />
-              </div>
+          {/* Source + Stage */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Source <span className="text-red-500">*</span></label>
+              <select className={inp} required value={form.source} onChange={set('source')}>
+                <option value="">Select source…</option>
+                {SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
             </div>
-          </details>
+            <div>
+              <label className={label}>Stage <span className="text-red-500">*</span></label>
+              <select className={inp} required value={form.stage_id} onChange={set('stage_id')}>
+                <option value="">Select stage…</option>
+                {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
 
           {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
 
