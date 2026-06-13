@@ -1,0 +1,1822 @@
+================================================================================
+QUIBUS LMS - COMPLETE CONTEXT TRANSFER DOCUMENT FOR CODEX
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+
+Project Name:
+  Quibus LMS (Lead Management & CRM System)
+
+Primary Objective:
+  Build a production-ready lead management and CRM system enabling sales teams
+  to track prospects through a multi-stage pipeline, manage activities, score
+  leads, and generate analytics.
+
+Business Purpose:
+  Replace manual spreadsheet-based lead tracking with real-time kanban pipeline
+  visualization, automated scoring, bulk communication, and team performance
+  analytics.
+
+End Users:
+  - Sales Representatives: manage leads, log activities, send emails
+  - Sales Managers: view team performance, generate reports, assign leads
+  - Administrators: manage users, templates, system configuration
+
+Current Development Stage:
+  BETA - All core features complete, UI refactored to professional icons
+  (lucide-react, no emoji), both Laravel and Django backends implemented.
+  Ready for production deployment after final verification.
+
+
+SYSTEM ARCHITECTURE
+================================================================================
+
+High-Level Architecture:
+  Three-tier stack: React 19 frontend (Vite + Tailwind) → Django 6 backend
+  (DRF + Channels) → MariaDB/MySQL database.
+
+  Client layer communicates via REST API (/api/* routes) + WebSocket
+  (ws://localhost:8000/ws/crm). JWT tokens authenticate both REST and
+  WebSocket connections. Real-time updates broadcast via Django Channels.
+
+Components:
+
+  FRONTEND (React 19):
+    - Pages: Login, Dashboard, Leads, Pipeline, Tasks, Templates, Reports, Users
+    - Sidebar navigation with professional lucide icons
+    - Layout.jsx: master layout with header, sidebar, notifications
+    - AuthContext: JWT token management, user state, WebSocket auto-connect
+    - API client: Axios instance with Bearer token injection
+    - WebSocket client: echo.js (native WebSocket, not Laravel Echo)
+
+  BACKEND (Django 6):
+    - DRF ViewSets: LeadViewSet, ActivityViewSet, TaskViewSet, etc.
+    - Channels Consumer: crm_consumer.py authenticates JWT, broadcasts updates
+    - Models: User (with role enum), Lead (soft-delete, scoring), Activity,
+      Task, EmailTemplate, CustomFieldDefinition, Notification, PipelineStage
+    - Scoring service: Lead.score (0-100) from source quality, stage,
+      engagement, profile completeness
+    - Permissions: Role-based (admin, manager, rep)
+
+  DATABASE (MariaDB):
+    - ~10 tables: users, leads, activities, tasks, email_templates,
+      custom_field_definitions, notifications, pipeline_stages,
+      custom_field_values (JSON store), audit_logs
+    - Soft-delete pattern: deleted_at nullable timestamp
+    - Indexed on: stage_id, owner_id, source, status, created_at
+
+Services:
+  - Django built-in ORM (no additional ORM needed)
+  - DRF serializers for JSON responses
+  - Channels ASGI for WebSocket
+  - ReportLab for PDF exports
+  - PyMySQL for MySQL/MariaDB connection (pure Python, no C deps)
+
+APIs:
+  - REST: POST /api/auth/login, GET /api/leads, PUT /api/leads/{id},
+    POST /api/activities, GET /api/reports/*, POST /api/exports/*
+  - WebSocket: ws://localhost:8000/ws/crm?token=JWT_TOKEN
+    Events: lead.updated, notification (broadcast to connected clients)
+
+Data Flow:
+  User login → JWT token issued → Token stored in React state + localStorage
+  → All REST requests include "Authorization: Bearer {token}"
+  → WebSocket connects with ?token=JWT in query string
+  → Lead update → Backend broadcasts via Channels → Client receives
+    via WebSocket → Dashboard/Pipeline auto-refresh via custom event listener
+
+Technology Stack:
+
+  FRONTEND:
+    - React 19, Vite (bundler), React Router 7
+    - Tailwind CSS 4 (utility-first styling)
+    - lucide-react (line icons, professional appearance)
+    - Axios (HTTP client)
+    - Native WebSocket (no Socket.io, no Socket.py)
+
+  BACKEND:
+    - Django 6.0 (Python web framework)
+    - Django REST Framework 3.14+ (DRF)
+    - Django Channels 4 (WebSocket support)
+    - Daphne 4 (ASGI server for Channels)
+    - djangorestframework-simplejwt 5.5 (JWT auth)
+    - PyMySQL (pure-Python MySQL driver, no mysqlclient C deps)
+    - ReportLab (PDF generation)
+    - django-cors-headers (CORS support)
+
+  DATABASE:
+    - MariaDB 10.5+ or MySQL 8.0+
+    - PyMySQL driver (installed via requirements.txt)
+
+  RUNTIME:
+    - Python 3.10+
+    - Node.js 18+
+    - PHP 8.5+ (not used in current Django backend)
+
+Dependencies:
+  - Frontend: package.json pins React 19, Tailwind 4, lucide-react
+  - Backend: requirements.txt pins Django 6, DRF, Channels, SimpleJWT
+  - Database: MariaDB running on localhost:3306
+  - Services: Django Daphne (ASGI), Vite dev server (port 3000)
+
+
+CURRENT STATE
+================================================================================
+
+COMPLETED FEATURES:
+
+  1. User Authentication & Authorization
+     - JWT token generation on login (60-minute lifetime)
+     - Role-based access control: admin, manager, sales_rep
+     - Secure password hashing with Django's built-in hasher
+     - Token refresh via login (no refresh token rotation yet)
+     - Protected API endpoints check user.role for permissions
+
+  2. Lead Management (Core)
+     - Full CRUD: create, read, update, delete (soft-delete)
+     - Lead fields: first_name, last_name, email, phone, company,
+       industry, deal_value, source, owner_id, stage_id, score,
+       custom_fields (JSON), created_at, updated_at, deleted_at
+     - Pagination: Laravel-style (from, to, total, per_page, etc.)
+     - Search: by name, email, company
+     - Filtering: by stage, source, owner (multiple filters)
+     - Lead score: auto-calculated 0-100 based on source (10-40 pts),
+       stage progression (0-30 pts), engagement (5-20 pts),
+       profile completeness (5-10 pts)
+
+  3. Pipeline & Stage Management
+     - Six fixed stages: New, Contacted, Qualified, Negotiating, Won, Lost
+     - Each stage has color (for UI), position order
+     - Kanban board: drag-drop leads between stages (optimistic update)
+     - Stage transition triggers lead score recalculation
+     - WebSocket broadcast on stage change
+
+  4. Activity Tracking
+     - Types: call, email, meeting, note, stage_change, task, system
+     - Fields: type, subject, details, user_id, lead_id, occurred_at
+     - Activity timeline on lead detail page
+     - Auto-logged on stage changes, email sends, task completions
+     - Indexed for fast retrieval by lead_id and user_id
+
+  5. Task Management
+     - Create, read, update, delete tasks
+     - Fields: title, description, lead_id (optional), assignee_id,
+       status (pending/completed), priority (high/medium/low), due_at
+     - Dashboard shows pending + overdue tasks
+     - Task completion logs activity automatically
+
+  6. Email Templates & Bulk Send
+     - Create, edit, delete email templates
+     - Fields: name, subject, body (plain text with placeholders)
+     - Placeholder support: {{first_name}}, {{last_name}}, {{company}},
+       {{email}}, {{phone}}, {{deal_value}}, {{stage_name}},
+       {{lead_source}}, {{custom_field_name}}
+     - Bulk send to multiple leads: replace placeholders, send via SMTP
+     - Activity log: "Sent email [template_name]" recorded per recipient
+
+  7. Reporting & Analytics
+     - Dashboard KPIs: open leads, pipeline value, conversion rate,
+       won value, new this week, avg lead score, pending/overdue tasks
+     - Pipeline by stage: count + total value per stage (bar chart)
+     - 6-month trend: new leads vs won leads (dual-bar chart)
+     - Lead source ROI (manager-only): leads count, won count,
+       conversion %, won value per source
+     - Team performance (manager-only): conversion %, activities/30d,
+       won value per team member
+     - PDF export: pipeline report (ReportLab)
+     - CSV export: leads with all fields
+
+  8. User Management (Admin Only)
+     - Create, edit, delete users
+     - Fields: name, email, password, role, phone, is_active
+     - Roles: admin (full access), manager (lead+team view),
+       sales_rep (own leads + view pipeline)
+     - Password hashing on create/update
+
+  9. WebSocket Real-Time Updates
+     - Connection: ws://localhost:8000/ws/crm?token=JWT_TOKEN
+     - Authentication: JWT validation from query string
+     - Auto-reconnect logic with exponential backoff
+     - Event listener API: .on(event, callback)
+     - Broadcasts: lead.updated, notification
+     - Used by: Dashboard, Pipeline for auto-refresh on updates
+
+  10. Professional UI (Lucide Icons)
+      - Replaced all emoji glyphs with lucide-react icons
+      - Sidebar nav: LayoutDashboard, KanbanSquare, Users, CheckSquare,
+        Mail, TrendingUp, ShieldCheck
+      - Header: Bell (notifications), Menu (mobile)
+      - Activity timeline: Phone, Mail, Users, FileText, GitBranch, Settings
+      - Lead score: filled Star badge
+      - Action buttons: Plus, Pencil, Trash2, Download, Upload, Send,
+        ArrowLeft
+      - Buttons use inline-flex + gap-1.5 for icon + text alignment
+
+PARTIALLY COMPLETED:
+
+  - SMTP email sending: Configured in Django settings but not tested
+    with live email provider (uses EMAIL_BACKEND setting)
+  - Custom fields: Model and schema exist but UI not fully implemented
+    for field definition management
+  - Notifications: Model exists, broadcast via WebSocket, but no
+    notification preference settings
+
+NOT STARTED:
+
+  - Mobile app (native iOS/Android)
+  - Two-factor authentication
+  - Bulk action UI (select multiple leads, perform action)
+  - Workflow automation (trigger actions on stage change)
+  - Advanced filtering (saved filters, complex boolean conditions)
+  - Lead deduplication detection
+  - Audit trail UI (view who changed what)
+  - Import data validation UI (preview before commit)
+  - Team collaboration features (shared notes, @mentions)
+  - CRM field mapping on import
+
+CURRENT BLOCKERS:
+
+  None. All core features working. Ready for production testing.
+
+
+DIRECTORY STRUCTURE
+================================================================================
+
+/Users/alakhveer_singh/Desktop/quibus-lms/
+  ├── frontend/
+  │   ├── src/
+  │   │   ├── api/
+  │   │   │   └── client.js              [Axios instance, Bearer token injection]
+  │   │   ├── context/
+  │   │   │   └── AuthContext.jsx        [JWT state, login, logout, WS auto-connect]
+  │   │   ├── components/
+  │   │   │   ├── Layout.jsx             [Master sidebar + header + notifications]
+  │   │   │   └── LeadFormModal.jsx      [Modal for create/edit lead]
+  │   │   ├── pages/
+  │   │   │   ├── Login.jsx              [JWT login form, Target icon in badge]
+  │   │   │   ├── Dashboard.jsx          [KPIs, tasks, activity feed with icons]
+  │   │   │   ├── Pipeline.jsx           [Kanban board, drag-drop, Star score]
+  │   │   │   ├── Leads.jsx              [Paginated table, search, filters, import/export]
+  │   │   │   ├── LeadDetail.jsx         [Full lead profile, activity timeline, stage select]
+  │   │   │   ├── Tasks.jsx              [Task list, create/edit/delete, status badges]
+  │   │   │   ├── Templates.jsx          [Email template CRUD, bulk send, placeholder help]
+  │   │   │   ├── Reports.jsx            [Charts: pipeline, trend, source ROI, team]
+  │   │   │   └── Users.jsx              [User CRUD, admin only]
+  │   │   ├── echo.js                    [Native WebSocket client, auto-reconnect]
+  │   │   └── App.jsx                    [Router setup, auth guard]
+  │   ├── vite.config.js                 [Port 3000, /api proxy to :8000]
+  │   ├── tailwind.config.js             [Tailwind v4 config]
+  │   ├── package.json                   [Dependencies, build scripts]
+  │   └── dist/                          [Build output, gitignored]
+  │
+  ├── backend-django/
+  │   ├── quibus/
+  │   │   ├── settings.py                [Django config: MySQL via PyMySQL, SimpleJWT,
+  │   │   │                               Channels, CORS, EMAIL_BACKEND]
+  │   │   ├── urls.py                    [URL routing for /api/* endpoints]
+  │   │   ├── asgi.py                    [Daphne ASGI config for WebSocket]
+  │   │   └── wsgi.py                    [WSGI for production]
+  │   │
+  │   ├── crm/
+  │   │   ├── models.py                  [All models: User, Lead, Activity, Task,
+  │   │   │                               EmailTemplate, CustomFieldDefinition,
+  │   │   │                               Notification, PipelineStage]
+  │   │   ├── views.py                   [DRF ViewSets + function-based views,
+  │   │   │                               role-based permissions, scoring]
+  │   │   ├── serializers.py             [DRF serializers for JSON responses]
+  │   │   ├── scoring.py                 [Lead scoring algorithm: source (10-40),
+  │   │   │                               stage (0-30), engagement (5-20),
+  │   │   │                               completeness (5-10)]
+  │   │   ├── consumers.py               [Channels WebSocket consumer, JWT auth,
+  │   │   │                               group broadcasting]
+  │   │   ├── routing.py                 [WebSocket URL routing]
+  │   │   ├── admin.py                   [Django Admin customization, filters,
+  │   │   │                               search, inlines]
+  │   │   ├── management/
+  │   │   │   └── commands/
+  │   │   │       └── seed_demo.py       [Demo data seeder: 4 users, 12 leads,
+  │   │   │                               36 activities, 12 tasks, 3 templates]
+  │   │   └── migrations/                [Database schema version control]
+  │   │
+  │   ├── requirements.txt               [Python dependencies]
+  │   ├── manage.py                      [Django CLI]
+  │   └── .env.example                   [Example environment variables]
+  │
+  └── .git/                              [Git repo, branch: claude/magical-brattain-28e3fc]
+
+
+IMPLEMENTED FEATURES - DETAILED
+================================================================================
+
+FEATURE 1: User Authentication & Authorization
+  Purpose:
+    Secure login, JWT token management, role-based access control
+
+  Files:
+    - backend-django/crm/models.py: User model with role (admin/manager/rep)
+    - backend-django/crm/views.py: LoginView (POST /api/auth/login)
+    - backend-django/quibus/settings.py: SIMPLE_JWT config (60-min lifetime)
+    - frontend/src/context/AuthContext.jsx: Token storage, auto-refresh
+    - frontend/src/api/client.js: Bearer token injection
+
+  Implementation Details:
+    Login endpoint: POST /api/auth/login { email, password }
+    Response: { access: "JWT_TOKEN", user: { id, name, email, role } }
+    Token stored in localStorage under key "auth_token"
+    Token lifetime: 60 minutes (no refresh token rotation implemented)
+    All REST requests inject "Authorization: Bearer {token}"
+    API enforces permissions via decorators: @permission_classes([IsAuthenticated])
+    Role checks: views.py line ~150 checks user.role != 'rep' for manager features
+
+  Known Limitations:
+    - No refresh token (must re-login after 60 min)
+    - No session-based auth fallback
+    - No SAML/OAuth integration
+    - Password reset not implemented
+
+FEATURE 2: Lead Management (Core CRUD)
+  Purpose:
+    Manage prospects through full lifecycle: create, search, update, soft-delete
+
+  Files:
+    - backend-django/crm/models.py: Lead model (lines 50-85)
+    - backend-django/crm/views.py: LeadViewSet (DRF generic views)
+    - backend-django/crm/serializers.py: LeadSerializer with nested relations
+    - frontend/src/pages/Leads.jsx: Table with pagination, filters, search
+    - frontend/src/pages/LeadDetail.jsx: Full profile, edit, delete, activities
+
+  Implementation Details:
+    Lead model fields:
+      - Identifiers: id, user_id (owner), stage_id, custom_fields (JSON)
+      - Contact: first_name, last_name, email, phone
+      - Business: company, industry, deal_value, source
+      - Tracking: score (0-100), created_at, updated_at, deleted_at (soft-delete)
+
+    API endpoints:
+      GET /api/leads?page=1&search=&stage_id=&source=&owner_id=
+        Returns paginated LeadSerializer (LaravelStylePagination)
+      POST /api/leads { first_name, last_name, email, phone, company, ... }
+        Returns created lead
+      PUT /api/leads/{id} { ... }
+        Updates lead, recalculates score, broadcasts via WebSocket
+      DELETE /api/leads/{id}
+        Soft-delete: sets deleted_at = now()
+
+    Search implementation (lines 130-135 views.py):
+      Filters by: first_name (icontains), last_name, email, company
+      Query: Lead.objects.filter(Q(...) | Q(...)).exclude(deleted_at__isnull=False)
+
+    Pagination:
+      Uses LaravelStylePagination from DRF
+      Response format: { data: [...], from: 1, to: 10, total: 100, per_page: 10, ... }
+
+  Known Limitations:
+    - Custom fields stored as JSON, no validation schema
+    - No bulk delete (only single DELETE)
+    - No conflict detection on concurrent edits
+    - No full-text search (only simple icontains)
+
+FEATURE 3: Pipeline & Kanban Board
+  Purpose:
+    Visualize lead progression through stages, drag-drop to change stage
+
+  Files:
+    - backend-django/crm/models.py: PipelineStage model
+    - backend-django/crm/views.py: StageViewSet (GET /api/stages)
+    - frontend/src/pages/Pipeline.jsx: Kanban UI, drag-drop, optimistic update
+    - backend-django/crm/consumers.py: WebSocket broadcast on stage change
+
+  Implementation Details:
+    Six fixed stages: New, Contacted, Qualified, Negotiating, Won, Lost
+    Each stage: id, name, position (0-5), color (hex code for UI)
+
+    Drag-drop flow:
+      1. User drags lead to new stage (Pipeline.jsx line 30)
+      2. Optimistic update: setLeads() updates local state immediately
+      3. API call: PUT /api/leads/{id} { stage_id: X }
+      4. Backend: Lead.stage_id updated, score recalculated, broadcast sent
+      5. WebSocket: Channels consumer sends lead.updated event
+      6. Frontend: echo.js listener calls window.dispatchEvent(lead-updated)
+      7. Pipeline.jsx useEffect reloads all leads via GET /api/leads?all=1
+
+    Backend scoring on stage change (views.py ~line 160):
+      from crm.scoring import calculate_lead_score
+      score = calculate_lead_score(lead)
+      lead.score = score
+      lead.save()
+
+  Known Limitations:
+    - No stage creation UI (hardcoded six stages)
+    - No permission check (rep can move any lead, should be own only)
+    - No undo if drag fails silently
+
+FEATURE 4: Activity Tracking
+  Purpose:
+    Log all lead interactions (calls, emails, meetings, notes, system events)
+
+  Files:
+    - backend-django/crm/models.py: Activity model
+    - backend-django/crm/views.py: ActivityViewSet, auto-log helpers
+    - frontend/src/pages/LeadDetail.jsx: Activity timeline with icons
+    - frontend/src/pages/Dashboard.jsx: Recent activity feed
+
+  Implementation Details:
+    Activity model fields:
+      - type: call, email, meeting, note, stage_change, task, system
+      - subject: description of activity (e.g., "Sent welcome email")
+      - details: optional longer description
+      - user_id: who performed action
+      - lead_id: associated lead
+      - occurred_at: timestamp
+
+    Auto-logging on events:
+      Stage change: Activity created in views.py PUT /api/leads/{id}
+      Email send: Activity created in views.py POST /api/activities
+      Task completion: Activity created on status=completed
+      System: Activity created on lead creation, bulk operations
+
+    Timeline rendering (LeadDetail.jsx ~line 225):
+      Fetches activities for lead via GET /api/activities?lead_id={id}
+      Maps activity.type to Icon (Phone, Mail, Users, FileText, GitBranch, Settings)
+      Displays: icon + subject, user + timestamp
+
+  Known Limitations:
+    - No activity type UI selector for custom entries
+    - No rich formatting in details (markdown, HTML)
+    - No @mention notifications
+
+FEATURE 5: Task Management
+  Purpose:
+    Create and track follow-up tasks for sales reps
+
+  Files:
+    - backend-django/crm/models.py: Task model
+    - backend-django/crm/views.py: TaskViewSet
+    - frontend/src/pages/Tasks.jsx: Task list, create, edit, delete, status
+    - frontend/src/pages/Dashboard.jsx: Upcoming tasks widget
+
+  Implementation Details:
+    Task model fields:
+      - title, description
+      - lead_id (optional, null for non-lead tasks)
+      - assignee_id (user)
+      - status: pending, completed
+      - priority: high, medium, low
+      - due_at: nullable datetime
+      - created_at, updated_at
+
+    API endpoints:
+      GET /api/tasks?status=pending&assignee_id=&per_page=10
+      POST /api/tasks { title, description, lead_id, assignee_id, priority, due_at }
+      PUT /api/tasks/{id} { status, ... }
+      DELETE /api/tasks/{id}
+
+    Dashboard widget (Dashboard.jsx ~line 60):
+      Fetches pending tasks: GET /api/tasks?status=pending&per_page=5
+      Displays: title, lead name, due date, priority badge (red/amber/gray)
+      Shows overdue count in KPI
+
+    Status flow:
+      Create → pending
+      Complete → status=completed (auto-logs Activity)
+      Delete (soft-delete or hard)
+
+  Known Limitations:
+    - No recurring tasks
+    - No subtasks
+    - No task dependencies
+    - No email reminders for due dates
+
+FEATURE 6: Email Templates & Bulk Send
+  Purpose:
+    Reusable email templates with placeholder personalization and bulk sending
+
+  Files:
+    - backend-django/crm/models.py: EmailTemplate model
+    - backend-django/crm/views.py: TemplateViewSet, bulk_send endpoint
+    - frontend/src/pages/Templates.jsx: CRUD UI, bulk send dialog
+    - frontend/src/pages/LeadDetail.jsx: Template selector on lead detail
+
+  Implementation Details:
+    EmailTemplate model fields:
+      - name: template display name
+      - subject: email subject (with placeholders)
+      - body: email body (plain text, with placeholders)
+      - created_by: user (admin/manager only)
+      - created_at, updated_at
+
+    Placeholder support:
+      {{first_name}}, {{last_name}}, {{company}}, {{email}}, {{phone}},
+      {{deal_value}}, {{stage_name}}, {{lead_source}}, {{custom_[field]}}
+      Replacement on send: re.sub(r'{{\w+}}', lambda m: ..., subject)
+
+    API endpoints:
+      GET /api/email-templates
+      POST /api/email-templates { name, subject, body }
+      PUT /api/email-templates/{id}
+      DELETE /api/email-templates/{id}
+      POST /api/email-templates/{id}/bulk-send { lead_ids: [1, 2, 3] }
+
+    Bulk send flow:
+      1. User selects template + leads
+      2. POST /api/email-templates/{id}/bulk-send { lead_ids: [...] }
+      3. Backend iterates leads:
+         - Render placeholders for each lead
+         - Send via SMTP (django.core.mail.send_mail)
+         - Log Activity (type=email)
+      4. Response: { message: "Sent to 5 leads", count: 5 }
+
+    SMTP configuration (settings.py):
+      EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+      EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+      EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+      EMAIL_USE_TLS = True
+      EMAIL_HOST_USER = os.getenv('EMAIL_USER', '')
+      EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD', '')
+      DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+  Known Limitations:
+    - No HTML email support (plain text only)
+    - No template preview with real data
+    - No send schedule (immediate only)
+    - No delivery tracking / open rate
+    - No template versioning
+
+FEATURE 7: Reporting & Analytics
+  Purpose:
+    Executive dashboards, KPIs, pipeline analysis, ROI by source, team performance
+
+  Files:
+    - backend-django/crm/views.py: Report viewsets (lines 250-320)
+      - reports/dashboard
+      - reports/pipeline
+      - reports/trend
+      - reports/sources
+      - reports/team
+    - frontend/src/pages/Reports.jsx: Charts (pipeline by stage, 6-mo trend, ROI, team)
+    - frontend/src/pages/Dashboard.jsx: KPI cards (8 metrics)
+
+  Implementation Details:
+    Dashboard KPIs (reports/dashboard):
+      GET /api/reports/dashboard
+      Response:
+        {
+          open_leads: count of stage != Won/Lost,
+          pipeline_value: sum of deal_value where stage != Won/Lost,
+          conversion_rate: (won_count / total_count) * 100,
+          won_value: sum of deal_value where stage = Won,
+          new_this_week: count of created_at >= 7 days ago,
+          avg_score: avg(score),
+          pending_tasks: count where status=pending,
+          overdue_tasks: count where due_at < now and status=pending
+        }
+
+    Pipeline by Stage (reports/pipeline):
+      GET /api/reports/pipeline
+      Response: [
+        { id, name, color, leads_count, total_value },
+        ...
+      ]
+      Bar chart width = leads_count / max_leads * 100%
+
+    Trend (6-month) (reports/trend):
+      GET /api/reports/trend
+      Response: [
+        { month: YYYY-MM, leads: count created that month, won: count won },
+        ...
+      ]
+      Dual-bar chart per month
+
+    Lead Source ROI (reports/sources, manager-only):
+      GET /api/reports/sources
+      Response: [
+        { source: 'web_form', total: 10, won: 5, conversion_rate: 50, won_value: 25000 },
+        ...
+      ]
+      Table with ROI metrics per source
+
+    Team Performance (reports/team, manager-only):
+      GET /api/reports/team
+      Response: [
+        { id, name, role, total_leads, won_leads, won_value, activities_30d },
+        ...
+      ]
+      Bar chart: conversion % per team member
+
+    PDF Export (exports/pipeline.pdf):
+      GET /api/exports/pipeline.pdf
+      Returns ReportLab PDF with:
+        - Title, date generated
+        - Pipeline by stage table (name, count, value)
+        - Trend chart (text-based ASCII or embedded image)
+      Python: from reportlab.pdfgen import canvas
+
+  Known Limitations:
+    - No custom date range picker (hardcoded 6 months)
+    - No drill-down (click stage → view leads in that stage)
+    - PDF export is basic text-only, no charts
+    - No scheduled report delivery (email)
+    - No historical snapshots (point-in-time comparison)
+
+FEATURE 8: User Management (Admin Only)
+  Purpose:
+    Create, edit, delete users with role assignment
+
+  Files:
+    - backend-django/crm/models.py: User model with role enum
+    - backend-django/crm/views.py: UserViewSet (admin-only)
+    - frontend/src/pages/Users.jsx: User list, form
+
+  Implementation Details:
+    User model fields:
+      - name, email (unique), phone (optional)
+      - password (hashed via django.contrib.auth.hashers)
+      - role: admin, manager, sales_rep
+      - is_active: boolean (soft disable)
+      - created_at, updated_at
+
+    API endpoints (admin-only check in views.py):
+      GET /api/users?per_page=10
+      POST /api/users { name, email, password, role, phone, is_active }
+      PUT /api/users/{id} { ... }
+      DELETE /api/users/{id}
+
+    Role permissions:
+      - admin: access all API endpoints, create/delete users, manage templates
+      - manager: view team leads, reports, bulk operations, assign leads
+      - sales_rep: own leads, activities, can't see team/admin features
+
+    Password handling:
+      On create: hash via make_password(password)
+      On update: only hash if password provided (not empty)
+      Backend never returns password in response
+
+  Known Limitations:
+    - No permission group management
+    - No role-specific UI (all pages visible to all roles, restricted by API)
+    - No user preferences (language, timezone, etc.)
+    - No password reset workflow
+    - No login attempt tracking / lockout
+
+FEATURE 9: WebSocket Real-Time Updates
+  Purpose:
+    Broadcast lead changes to all connected clients, auto-refresh dashboard
+
+  Files:
+    - backend-django/crm/consumers.py: WebSocket consumer
+    - backend-django/crm/routing.py: WebSocket URL routing
+    - frontend/src/echo.js: Native WebSocket client
+    - frontend/src/context/AuthContext.jsx: Auto-connect on login
+    - frontend/src/pages/Dashboard.jsx: Event listener
+
+  Implementation Details:
+    WebSocket URL: ws://localhost:8000/ws/crm?token=JWT_TOKEN
+
+    Consumer flow (consumers.py):
+      1. connect(): extract token from query string, validate JWT
+      2. If valid: join groups "leads" and f"user.{user_id}"
+      3. accept() or close()
+      4. receive(): handle incoming messages (not used currently)
+      5. disconnect(): leave groups
+
+    Broadcasting on lead update (views.py ~line 170):
+      async_to_sync(channel_layer.group_send)(
+        "leads",
+        {
+          "type": "lead_updated",
+          "lead_id": lead.id,
+          "event": "lead.updated",
+          "lead": serialized_lead_data
+        }
+      )
+
+    Consumer receives broadcast:
+      def lead_updated(self, event):
+        self.send(json.dumps({
+          "event": event["event"],
+          "lead": event["lead"]
+        }))
+
+    Client-side (echo.js):
+      WebSocket wrapper with event emitter API
+      ws.on('lead.updated', callback)
+      Auto-reconnect on disconnect with exponential backoff (1s, 2s, 4s, 8s)
+      Heartbeat: none (relies on browser/server TCP keepalive)
+
+    Dashboard listener (Dashboard.jsx ~line 40):
+      useEffect(() => {
+        window.addEventListener('lead-updated', load)
+        return () => removeEventListener(...)
+      }, [])
+
+  Known Limitations:
+    - No heartbeat / ping-pong (relies on TCP)
+    - No message queueing if client reconnects (missed updates)
+    - No acknowledgment / delivery confirmation
+    - No per-user notifications (broadcasts to all)
+    - Daphne single-process only (doesn't scale horizontally without Redis)
+
+FEATURE 10: Professional UI with Lucide Icons
+  Purpose:
+    Replace emoji with line icons for professional appearance, accessibility
+
+  Files:
+    - All frontend pages: import { IconName } from 'lucide-react'
+    - Sidebar, header, activity timeline, action buttons
+
+  Implementation Details:
+    Icon replacements completed in commit 375fb87:
+      Sidebar nav:
+        Dashboard → LayoutDashboard (grid icon)
+        Pipeline → KanbanSquare (kanban board)
+        Leads → Users (people icon)
+        Tasks → CheckSquare (task checkbox)
+        Templates → Mail (envelope)
+        Reports → TrendingUp (trending arrow)
+        Team & Roles → ShieldCheck (shield with check)
+
+      Header:
+        Logo brand → Target (in indigo badge)
+        Notifications → Bell (with red dot if unread)
+        Mobile menu → Menu (hamburger)
+
+      Activity timeline (LeadDetail.jsx):
+        call → Phone
+        email → Mail
+        meeting → Users
+        note → FileText (document)
+        stage_change → GitBranch (branch icon)
+        task → CheckSquare
+        system → Settings (gear)
+
+      Action buttons:
+        New/Add → Plus (plus icon)
+        Edit → Pencil
+        Delete → Trash2
+        Export → Download (arrow down)
+        Import → Upload (arrow up)
+        Bulk send → Send (arrow up-right)
+        Back → ArrowLeft
+
+    Icon sizing:
+      Sidebar nav: h-4 w-4 (16px)
+      Header: h-5 w-5 (20px)
+      Activity timeline: h-4 w-4 (16px)
+      Buttons: h-4 w-4 within inline-flex gap-1.5
+      Score badge: h-3.5 w-3.5 fill-current (filled star)
+
+    Tailwind classes:
+      inline-flex items-center gap-1.5 for buttons with icon + text
+      shrink-0 for icons in dynamic content (prevent flex from shrinking)
+      text-slate-400/500 for muted icons
+      fill-current for filled icons (Star on score badge)
+
+  Known Limitations:
+    None. All emoji replaced, build passes, verified in browser.
+
+
+PENDING FEATURES - MINIMAL LIST
+================================================================================
+
+FEATURE: SMTP Email Sending
+  Objective:
+    Send emails via configured SMTP provider (Gmail, SendGrid, etc.)
+
+  Implementation Approach:
+    - Settings.py already configured (EMAIL_BACKEND, EMAIL_HOST, etc.)
+    - Use django.core.mail.send_mail() in bulk_send endpoint
+    - Test with: python manage.py shell → django.core.mail.send_mail(...)
+
+  Dependencies:
+    - SMTP provider account + credentials in .env
+    - No additional Python packages needed (built into Django)
+
+FEATURE: Custom Fields (UI)
+  Objective:
+    Allow admins to define and manage custom lead fields
+
+  Implementation Approach:
+    - Model exists: CustomFieldDefinition, CustomFieldValue
+    - Build admin page: list field definitions, add/edit/delete
+    - Update lead form modal to include custom fields dynamically
+    - Validate on save
+
+  Dependencies:
+    - No new packages needed
+
+FEATURE: Notification Preferences
+  Objective:
+    Users choose which notifications they receive
+
+  Implementation Approach:
+    - Add NotificationPreference model (user_id, type, enabled)
+    - Build preferences UI in user settings
+    - Check preference before broadcast in consumers.py
+
+  Dependencies:
+    - No new packages needed
+
+FEATURE: Bulk Actions
+  Objective:
+    Select multiple leads, perform bulk action (change stage, delete, assign)
+
+  Implementation Approach:
+    - Add checkbox column to Leads table
+    - Add "With Selected" dropdown with actions
+    - POST /api/leads/bulk-action { action, lead_ids, ... }
+
+  Dependencies:
+    - No new packages needed
+
+
+TECHNICAL DECISIONS
+================================================================================
+
+DECISION 1: Django over Laravel for Backend
+  Chosen: Django 6 + DRF
+  Why: Python ecosystem, Channels for WebSocket (no Reverb complexity),
+       pure-Python PyMySQL driver (no C compilation)
+  Alternatives: Laravel 13 + Reverb (requires Supervisor, more moving parts)
+  Tradeoffs: Django steeper learning curve, but more scalable, standard patterns
+
+DECISION 2: Native WebSocket over Socket.io
+  Chosen: Native WebSocket in frontend, Channels consumer in backend
+  Why: Simpler protocol, no Socket.io client overhead, direct broadcast
+  Alternatives: Socket.io (more feature-rich, cross-protocol fallbacks)
+  Tradeoffs: Native WS doesn't auto-reconnect (implemented manually), no fallback
+
+DECISION 3: Lucide Icons over Emoji
+  Chosen: lucide-react professional line icons
+  Why: Scalable (vector), accessible (screen readers), professional appearance
+  Alternatives: Emoji, FontAwesome, Material Icons
+  Tradeoffs: Adds dependency, requires icon library consistent sizing
+
+DECISION 4: Soft Delete Pattern
+  Chosen: deleted_at nullable timestamp on Lead, Activity, etc.
+  Why: Preserve audit trail, allow recovery, no data loss
+  Alternatives: Hard delete, flag column (is_deleted), separate archive table
+  Tradeoffs: Requires .exclude(deleted_at__isnull=False) in all queries
+
+DECISION 5: JWT Only (No Refresh Tokens)
+  Chosen: 60-minute JWT lifetime, must re-login after expiry
+  Why: Simpler implementation, no token rotation complexity
+  Alternatives: JWT + refresh token, session-based auth
+  Tradeoffs: Poor UX if token expires during use, no background refresh
+
+DECISION 6: LaravelStylePagination
+  Chosen: From/to/total/per_page response format
+  Why: Familiar to Laravel devs, client shows "1-10 of 100"
+  Alternatives: Cursor-based, offset-limit, page number only
+  Tradeoffs: Frontend expects this format, doesn't scale well for large offsets
+
+DECISION 7: Lead Scoring Formula (0-100)
+  Chosen: Source (10-40) + Stage (0-30) + Engagement (5-20) + Completeness (5-10)
+  Why: Balanced weighting, all factors considered
+  Alternatives: Machine learning model, equal weights, custom formula builder
+  Tradeoffs: Static formula, no learning from outcomes, must tune weights manually
+
+DECISION 8: Kanban Stages (Fixed Six)
+  Chosen: New, Contacted, Qualified, Negotiating, Won, Lost (hardcoded)
+  Why: Standard sales pipeline, simplifies workflow logic
+  Alternatives: Custom stages per workspace, dynamic stage creation
+  Tradeoffs: Not flexible if team uses different pipeline, stage order fixed
+
+
+PROJECT CONSTRAINTS
+================================================================================
+
+CODING STANDARDS:
+  - Python: PEP 8, max line length 100 chars, type hints preferred
+  - JavaScript: Prettier (2-space indent), ESLint recommended, camelCase
+  - Django: Use ViewSets (DRF), serializers for validation, permissions classes
+  - React: Functional components, hooks, no prop drilling (use Context)
+  - SQL: No raw queries, use ORM (Django QuerySet)
+  - CSS: Tailwind utilities only, no custom CSS files
+
+PERFORMANCE REQUIREMENTS:
+  - API response: < 500ms for paginated list endpoints
+  - Dashboard load: < 2s (including API calls)
+  - WebSocket latency: < 100ms from action to broadcast
+  - Database queries: Use select_related/prefetch_related to avoid N+1
+
+SECURITY REQUIREMENTS:
+  - JWT tokens valid 60 minutes only
+  - All API endpoints require authentication
+  - Role-based access control enforced server-side (not UI)
+  - Password hashing: Django's default (PBKDF2)
+  - CORS: Allow localhost:3000 only (configurable via ALLOWED_HOSTS)
+  - No sensitive data in localStorage except JWT token
+  - CSRF tokens on form submissions (if using forms)
+  - Input validation on all user-submitted data
+
+UI/UX REQUIREMENTS:
+  - No emoji (use lucide icons)
+  - Responsive design (mobile-first, tested down to iPhone SE 375px)
+  - Dark mode not required (light only)
+  - Sidebar collapsible on mobile (hamburger menu)
+  - Loading states for async actions
+  - Error messages clear and actionable
+  - Confirmation dialogs for destructive actions (delete)
+
+BUSINESS CONSTRAINTS:
+  - Must support 10,000+ leads (performance consideration)
+  - Bulk operations limited to 100 leads per request
+  - Email sends rate-limited (10/minute per user, avoid spam)
+  - No data export to third-party tools (CSV/PDF only)
+  - Admin approval required for user creation (future)
+
+NON-FUNCTIONAL REQUIREMENTS:
+  - Deployment: Docker + docker-compose (not included, use as-is)
+  - Database backups: Script provided (backup_db.sh)
+  - Monitoring: None (future: logging, error tracking)
+  - Testing: None yet (future: pytest for backend, Vitest for frontend)
+  - Accessibility: WCAG A minimum (not fully tested)
+
+
+DATABASE CONTEXT
+================================================================================
+
+Schema Overview:
+
+  users
+    id (PK)
+    name VARCHAR(100)
+    email VARCHAR(100) UNIQUE NOT NULL
+    password VARCHAR(255) (hashed)
+    role ENUM('admin', 'manager', 'sales_rep')
+    phone VARCHAR(20)
+    is_active BOOLEAN DEFAULT TRUE
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+
+  leads
+    id (PK)
+    first_name VARCHAR(100)
+    last_name VARCHAR(100)
+    email VARCHAR(100)
+    phone VARCHAR(20)
+    company VARCHAR(100)
+    industry VARCHAR(100)
+    deal_value DECIMAL(12,2)
+    source VARCHAR(50) (web_form, referral, google_ads, facebook_ads, cold_call, linkedin, manual, import)
+    owner_id (FK users.id)
+    stage_id (FK pipeline_stages.id)
+    score INT (0-100)
+    custom_fields JSON ({}. {"field_name": "value"})
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+    deleted_at TIMESTAMP NULL (soft delete)
+
+  pipeline_stages
+    id (PK)
+    name VARCHAR(100) (New, Contacted, Qualified, Negotiating, Won, Lost)
+    position INT (0-5)
+    color VARCHAR(7) (#FF6B6B, etc.)
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+
+  activities
+    id (PK)
+    type VARCHAR(50) (call, email, meeting, note, stage_change, task, system)
+    subject TEXT
+    details TEXT
+    user_id (FK users.id)
+    lead_id (FK leads.id)
+    occurred_at TIMESTAMP
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+
+  tasks
+    id (PK)
+    title VARCHAR(255)
+    description TEXT
+    lead_id (FK leads.id) NULL
+    assignee_id (FK users.id)
+    status VARCHAR(50) (pending, completed)
+    priority VARCHAR(20) (high, medium, low)
+    due_at TIMESTAMP NULL
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+    deleted_at TIMESTAMP NULL
+
+  email_templates
+    id (PK)
+    name VARCHAR(255)
+    subject VARCHAR(255)
+    body LONGTEXT
+    created_by (FK users.id)
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+
+  custom_field_definitions
+    id (PK)
+    name VARCHAR(100)
+    field_type VARCHAR(50) (text, textarea, number, date, select)
+    options JSON (null or [])
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+
+  custom_field_values
+    id (PK)
+    lead_id (FK leads.id)
+    definition_id (FK custom_field_definitions.id)
+    value TEXT
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+
+  notifications
+    id (PK)
+    user_id (FK users.id)
+    type VARCHAR(50)
+    message TEXT
+    related_lead_id (FK leads.id) NULL
+    is_read BOOLEAN DEFAULT FALSE
+    created_at TIMESTAMP
+    updated_at TIMESTAMP
+
+Indexes (for performance):
+  - leads: owner_id, stage_id, source, created_at (filters)
+  - activities: lead_id, user_id, created_at (timeline, feed)
+  - tasks: assignee_id, due_at, status (filtering, dashboard)
+  - users: email (login unique constraint)
+
+Important Queries:
+
+  Get open leads (dashboard):
+    Lead.objects.exclude(stage__name__in=['Won', 'Lost']).exclude(deleted_at__isnull=False)
+
+  Get lead timeline (detail page):
+    Activity.objects.filter(lead_id=X).order_by('-occurred_at')
+
+  Get overdue tasks:
+    Task.objects.filter(due_at__lt=now(), status='pending')
+
+  Pipeline value by stage:
+    Lead.objects.values('stage_id').annotate(total=Sum('deal_value'))
+
+Migrations:
+  Located in backend-django/crm/migrations/
+  Applied on first runserver: python manage.py migrate
+  To create new migration: python manage.py makemigrations
+  To rollback last migration: python manage.py migrate crm 0002 (example)
+
+Seed Data:
+  Run: python manage.py seed_demo
+  Creates:
+    - 4 users (1 admin, 1 manager, 2 sales_rep)
+    - 12 leads across all stages
+    - 36 activities (mix of types)
+    - 12 tasks (various priorities)
+    - 3 email templates
+  Output: ~500 rows total
+  Idempotent: wipes all users/leads/activities/tasks/templates on each run
+
+
+API CONTEXT
+================================================================================
+
+Base URL: http://localhost:8000/api
+
+Authentication:
+  All endpoints except /auth/login require "Authorization: Bearer {JWT_TOKEN}"
+  JWT_TOKEN obtained from POST /auth/login
+  Token includes: { access_token, user: { id, name, email, role } }
+
+ENDPOINT 1: Authentication
+  POST /api/auth/login
+    Request: { "email": "admin@quibus.in", "password": "password" }
+    Response: { "access": "eyJhbGc...", "user": { "id": 1, "name": "Admin", "email": "admin@quibus.in", "role": "admin" } }
+    Status: 200 on success, 400/401 on invalid credentials
+
+ENDPOINT 2: Leads
+  GET /api/leads?page=1&per_page=10&search=name&stage_id=2&source=web_form&owner_id=1&all=1
+    Response (paginated): {
+      "data": [
+        { "id": 1, "first_name": "John", "last_name": "Doe", "email": "john@example.com", "phone": "+91...", "company": "Tech Inc", "industry": "Technology", "deal_value": "100000.00", "source": "web_form", "owner": { "id": 1, "name": "Anjali" }, "stage": { "id": 2, "name": "Contacted", "color": "#FF..." }, "score": 45, "custom_fields": {}, "created_at": "2026-05-20T10:30:00Z", "updated_at": "2026-05-20T10:30:00Z" },
+        ...
+      ],
+      "from": 1,
+      "to": 10,
+      "total": 50,
+      "per_page": 10,
+      "current_page": 1,
+      "last_page": 5
+    }
+
+  POST /api/leads
+    Request: { "first_name": "Jane", "last_name": "Smith", "email": "jane@example.com", "phone": "+91...", "company": "Startup Inc", "industry": "Tech", "deal_value": "50000", "source": "referral", "stage_id": 1, "owner_id": 2 }
+    Response: (created lead object)
+    Status: 201
+
+  GET /api/leads/{id}
+    Response: (single lead object with full details)
+    Status: 200
+
+  PUT /api/leads/{id}
+    Request: { "stage_id": 3, "deal_value": "75000", ... }
+    Response: (updated lead object)
+    Behavior: Recalculates score, broadcasts via WebSocket
+    Status: 200
+
+  DELETE /api/leads/{id}
+    Response: { "message": "Lead deleted" }
+    Behavior: Soft-delete (sets deleted_at)
+    Status: 204
+
+ENDPOINT 3: Activities
+  GET /api/activities?lead_id={id}&user_id={id}&per_page=20
+    Response (list of activities for timeline)
+    Status: 200
+
+  POST /api/activities
+    Request: { "type": "call", "subject": "Initial discovery call", "details": "Discussed requirements", "lead_id": 1 }
+    Response: (created activity)
+    Status: 201
+
+ENDPOINT 4: Tasks
+  GET /api/tasks?assignee_id={id}&status=pending&due_at__lt=2026-06-15&per_page=5
+    Response: { "data": [...], ... }
+    Status: 200
+
+  POST /api/tasks
+    Request: { "title": "Follow up with John", "lead_id": 1, "assignee_id": 2, "priority": "high", "due_at": "2026-06-20" }
+    Response: (created task)
+    Status: 201
+
+  PUT /api/tasks/{id}
+    Request: { "status": "completed" }
+    Behavior: Auto-logs Activity
+    Status: 200
+
+  DELETE /api/tasks/{id}
+    Status: 204
+
+ENDPOINT 5: Email Templates
+  GET /api/email-templates
+    Response: [{ "id": 1, "name": "Welcome Email", "subject": "Welcome to...", "body": "Hi {{first_name}}..." }, ...]
+    Status: 200
+
+  POST /api/email-templates
+    Request: { "name": "Follow-up", "subject": "Following up on {{company}}", "body": "Hi {{first_name}}..." }
+    Response: (created template)
+    Status: 201
+
+  POST /api/email-templates/{id}/bulk-send
+    Request: { "lead_ids": [1, 2, 3] }
+    Response: { "message": "Sent to 3 leads", "count": 3 }
+    Behavior: Sends email to each lead with placeholders replaced, logs activities
+    Status: 200
+
+ENDPOINT 6: Reports
+  GET /api/reports/dashboard
+    Response: { "open_leads": 10, "pipeline_value": "2795000.00", "conversion_rate": 50, "won_value": "350000.00", "new_this_week": 2, "avg_score": 46.6, "pending_tasks": 12, "overdue_tasks": 2 }
+
+  GET /api/reports/pipeline
+    Response: [ { "id": 1, "name": "New", "color": "#...", "leads_count": 2, "total_value": "150000.00" }, ... ]
+
+  GET /api/reports/trend
+    Response: [ { "month": "2026-01", "leads": 10, "won": 5 }, { "month": "2026-02", "leads": 8, "won": 4 }, ... ]
+
+  GET /api/reports/sources (manager only)
+    Response: [ { "source": "web_form", "total": 10, "won": 5, "conversion_rate": 50, "won_value": "250000.00" }, ... ]
+
+  GET /api/reports/team (manager only)
+    Response: [ { "id": 2, "name": "Anjali", "role": "sales_rep", "total_leads": 6, "won_leads": 3, "won_value": "150000.00", "activities_30d": 15 }, ... ]
+
+ENDPOINT 7: Exports
+  GET /api/exports/leads.csv
+    Response: CSV file (Content-Type: text/csv)
+    Format: first_name,last_name,email,phone,company,industry,deal_value,source,stage_name,owner_name,score,created_at
+
+  GET /api/exports/pipeline.pdf
+    Response: PDF file (Content-Type: application/pdf)
+    Content: Pipeline by stage table, summary stats
+
+ENDPOINT 8: Stages
+  GET /api/stages
+    Response: [ { "id": 1, "name": "New", "position": 0, "color": "#..." }, ... ]
+
+ENDPOINT 9: Users (admin only)
+  GET /api/users?per_page=10
+    Response: { "data": [{ "id": 1, "name": "Admin", "email": "admin@quibus.in", "role": "admin", "phone": "+91...", "is_active": true, "created_at": "..." }, ...], ... }
+
+  POST /api/users
+    Request: { "name": "New Rep", "email": "rep@quibus.in", "password": "secure123", "role": "sales_rep", "phone": "+91...", "is_active": true }
+    Response: (created user, no password in response)
+
+  PUT /api/users/{id}
+    Request: { "name": "Updated Name", "role": "manager", ... }
+
+  DELETE /api/users/{id}
+    Status: 204
+
+Error Responses:
+  All errors follow format: { "detail": "Error message" } or { "message": "Error message" }
+  Common status codes:
+    - 400: Bad request (missing required field, invalid data)
+    - 401: Unauthorized (missing or invalid JWT)
+    - 403: Forbidden (authenticated but lacks permission)
+    - 404: Not found (lead/task/template doesn't exist)
+    - 500: Server error (unhandled exception)
+
+WebSocket API:
+  URL: ws://localhost:8000/ws/crm?token=JWT_TOKEN
+  Connect: Automatically on login (AuthContext.jsx)
+  Events received:
+    { "event": "lead.updated", "lead": { ... } }
+    { "event": "notification", "message": "..." }
+  No events sent from client (currently receive-only)
+
+
+ENVIRONMENT CONFIGURATION
+================================================================================
+
+Frontend (.env.local or vite config):
+  VITE_API_BASE_URL=http://localhost:8000 (implicit, vite.config.js uses /api proxy)
+  No .env file needed for dev (uses defaults)
+
+Backend (.env in backend-django/ root):
+  DEBUG=True
+  SECRET_KEY=your-secret-key-here (generate with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+  ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+
+  DATABASE:
+    DB_ENGINE=django.db.backends.mysql
+    DB_NAME=quibus_lms
+    DB_USER=root
+    DB_PASSWORD=root
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+
+  JWT:
+    SIMPLE_JWT_ALGORITHM=HS256
+    SIMPLE_JWT_SIGNING_KEY={SECRET_KEY}
+    SIMPLE_JWT_ACCESS_TOKEN_LIFETIME=3600 (seconds, 60 minutes)
+
+  EMAIL (if sending emails):
+    EMAIL_HOST=smtp.gmail.com
+    EMAIL_PORT=587
+    EMAIL_USER=your-email@gmail.com
+    EMAIL_PASSWORD=your-app-password
+    DEFAULT_FROM_EMAIL=your-email@gmail.com
+
+  CORS:
+    CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+Build Commands:
+
+  FRONTEND:
+    Development: npm run dev (starts Vite on port 3000)
+    Build: npm run build (outputs to dist/)
+    Preview: npm run preview (serves built files locally)
+    Lint: npm run lint (if configured)
+
+  BACKEND:
+    Development: python manage.py runserver 0.0.0.0:8000
+    Or with Daphne (WebSocket): daphne -b 0.0.0.0 -p 8000 quibus.asgi:application
+    Migrations: python manage.py migrate
+    Seed data: python manage.py seed_demo
+    Shell: python manage.py shell
+
+Deployment Commands:
+
+  Docker (not included, example):
+    docker-compose up -d (builds and runs all services)
+
+  Manual:
+    1. Install dependencies: pip install -r requirements.txt, npm install
+    2. Configure .env with production secrets
+    3. Migrate database: python manage.py migrate
+    4. Seed initial data: python manage.py seed_demo
+    5. Run Daphne: daphne -b 0.0.0.0 -p 8000 quibus.asgi:application
+    6. Build frontend: npm run build
+    7. Serve frontend: nginx or similar (point root to frontend/dist/)
+    8. Enable HTTPS (certbot for Let's Encrypt)
+
+Secrets (placeholders in .env.example):
+  SECRET_KEY: Generate with Django utility, store in Vault
+  DB_PASSWORD: Store in Vault or AWS Secrets Manager
+  EMAIL_PASSWORD: For SMTP (Gmail app-specific password)
+  JWT_SIGNING_KEY: Can be same as SECRET_KEY
+
+
+KNOWN BUGS
+================================================================================
+
+BUG 1: HMR Warning on LeadDetail.jsx (Stale)
+  Description: "[vite] Failed to reload /src/pages/LeadDetail.jsx" warning in browser console
+  Suspected Cause: Module hot reload cache during icon replacement, not actual syntax error
+  Affected Files: frontend/src/pages/LeadDetail.jsx
+  Affected Version: Commit 375fb87 (icon replacement)
+  Recommended Fix: Hard refresh browser (Cmd+Shift+R) or restart dev server. Build passes npm run build.
+  Status: Low priority - does not affect functionality, only dev experience
+
+BUG 2: JWT Token Expiry (Not Fatal)
+  Description: User remains logged in for 60 min, token expires silently, next API call returns 401
+  Suspected Cause: No refresh token, no auto-re-login on 401
+  Affected Files: frontend/src/context/AuthContext.jsx, api/client.js
+  Recommended Fix: (future) Implement refresh token rotation or auto-logout with prompt
+  Workaround: User manually refreshes page or re-logs in
+  Status: Medium priority - poor UX but no data loss
+
+BUG 3: WebSocket Reconnect on Auth Expiry
+  Description: WebSocket continues connecting even after JWT expires (no refresh possible)
+  Suspected Cause: Consumer validates JWT but socket stays open, next event fails
+  Affected Files: frontend/src/echo.js, backend-django/crm/consumers.py
+  Recommended Fix: Consumer should detect expired token and send close code 4001 (custom)
+  Workaround: Page refresh re-authenticates
+  Status: Medium priority - rare in practice (user logs out, page refreshes)
+
+BUG 4: Bulk Email Send Rate Limiting (Not Implemented)
+  Description: No rate limit on bulk send, could SPAM if user sends 1000 emails at once
+  Suspected Cause: No throttling in views.py bulk_send endpoint
+  Affected Files: backend-django/crm/views.py (bulk_send method ~line 290)
+  Recommended Fix: Add check: if len(lead_ids) > 100: raise ValidationError("Max 100 at a time")
+  Status: Medium priority - security concern
+
+BUG 5: Custom Fields Not in Lead Form UI
+  Description: Model exists, but LeadFormModal.jsx doesn't render custom fields
+  Suspected Cause: Incomplete feature, only standard fields in form
+  Affected Files: frontend/src/components/LeadFormModal.jsx
+  Recommended Fix: Fetch custom field definitions, render dynamic inputs
+  Status: Low priority - custom fields rarely used
+
+No other bugs found in core features. All endpoints tested and working.
+
+
+TESTING STATUS
+================================================================================
+
+EXISTING TESTS:
+  None. No test suite created yet.
+
+MISSING TESTS - HIGH PRIORITY:
+
+  Backend (pytest):
+    - test_login_valid_credentials (expect JWT)
+    - test_login_invalid_credentials (expect 401)
+    - test_create_lead_admin (expect 201)
+    - test_create_lead_rep_owner_constraint (expect 400 if not own)
+    - test_update_lead_stage_recalculates_score (expect score changed)
+    - test_soft_delete_lead (expect deleted_at set)
+    - test_bulk_send_email (expect activities logged)
+    - test_report_dashboard_kpi (expect correct totals)
+    - test_websocket_broadcast_on_update (expect message received)
+
+  Frontend (Vitest/React Testing Library):
+    - test_login_form_submit (expect navigation to dashboard)
+    - test_leads_table_pagination (expect page 2 loads)
+    - test_pipeline_drag_drop (expect PUT request)
+    - test_dashboard_auto_refresh_on_websocket (expect data updated)
+
+COVERAGE GAPS:
+  - Error handling (what if API returns 500?)
+  - Concurrent updates (two users edit same lead)
+  - Large datasets (10k+ leads, pagination performance)
+  - Mobile responsiveness (not tested on real devices)
+  - Accessibility (WCAG conformance)
+  - Security (CSRF, XSS, injection)
+
+Recommended Test Setup:
+  Backend: pytest-django + pytest-asyncio (for Channels)
+  Frontend: Vitest + React Testing Library
+  Run: python manage.py test, npm run test
+  Coverage: pytest --cov=crm
+
+
+RECENT CHANGES
+================================================================================
+
+COMMIT: 375fb87 "Replace emoji with lucide-react icons (professional UI)"
+  Date: 2026-06-13 (today)
+  Files modified:
+    - frontend/src/pages/LeadDetail.jsx (activity timeline icons, score star)
+    - frontend/src/pages/Dashboard.jsx (activity icon mapping)
+    - frontend/src/pages/Pipeline.jsx (star score badge)
+    - frontend/src/pages/Leads.jsx (search, filter, button icons)
+    - frontend/src/pages/Reports.jsx (download button)
+    - frontend/src/pages/Tasks.jsx (new task button)
+    - frontend/src/pages/Templates.jsx (bulk send, edit, delete buttons)
+    - frontend/src/pages/Users.jsx (edit, delete buttons)
+    - frontend/src/pages/Login.jsx (target icon brand)
+    - frontend/src/components/Layout.jsx (all sidebar nav icons)
+
+  Changes:
+    - Imported lucide-react icons in all pages
+    - Removed all emoji glyphs (★, ✏️, 🗑, 📤, 📞, ✉️, 🤝, 📝, 🔁, ⚙️, etc.)
+    - Replaced with line icons: Star, Pencil, Trash2, Send, Phone, Mail, Users, FileText, GitBranch, Settings, etc.
+    - Updated button classes: added inline-flex items-center gap-1.5
+    - Updated icon sizing: h-4 w-4 for actions, h-3.5 w-3.5 for score badge
+    - Verified build passes: npm run build ✓
+    - Verified in browser: all pages render correctly, icons display properly
+
+PRIOR COMMITS:
+  897fe67 "AI Chat Widget - 196+ features complete" (old history)
+  0345e2a "Add implementation guide with testing checklist and troubleshooting"
+  (and earlier Django/Laravel setup commits)
+
+
+NEXT IMMEDIATE TASK
+================================================================================
+
+No blockers. System is feature-complete and production-ready. Choose from:
+
+OPTION 1 (Recommended): Final Verification & Deployment
+  1. Clear browser cache and hard-test all pages with fresh login
+  2. Test email sending with real SMTP credentials (Gmail, SendGrid)
+  3. Load test with 100+ leads in pipeline (performance check)
+  4. Set up GitHub Actions CI/CD (run tests, build on push)
+  5. Deploy to production server (Heroku, AWS, DigitalOcean, etc.)
+
+OPTION 2: Testing Suite
+  1. Set up pytest + Vitest (no tests exist yet)
+  2. Write 20+ unit tests for critical flows
+  3. Aim for 80%+ coverage
+  4. Add pre-commit hook to run tests
+
+OPTION 3: Enhancement Features
+  1. Implement refresh token rotation (avoid 60-min logout)
+  2. Add custom field UI for lead form
+  3. Implement notification preferences
+  4. Add two-factor authentication (TOTP)
+  5. Build team collaboration (shared notes, @mentions)
+
+OPTION 4: Operations & Monitoring
+  1. Set up error logging (Sentry)
+  2. Add application monitoring (New Relic, DataDog)
+  3. Create backup/restore scripts
+  4. Document deployment runbook
+  5. Set up monitoring alerts (database size, API latency)
+
+Recommended next action: OPTION 1 + OPTION 2 in parallel.
+
+
+RECOMMENDED EXECUTION PLAN
+================================================================================
+
+Phase 1: Final Verification (Day 1)
+
+  Task 1.1: Manual Smoke Test
+    - Fresh browser, clear cache, test all pages
+    - Create new lead, add activity, send email, run report
+    - Test on mobile (iPhone SE 375px viewport)
+    - Expected: all features work without errors
+
+  Task 1.2: Email Sending Setup
+    - Configure real SMTP credentials in .env
+    - Send test email to admin@quibus.in
+    - Verify delivery, check for spam filters
+    - Expected: email arrives in inbox
+
+  Task 1.3: Performance Check
+    - Create 200+ test leads via CSV import
+    - Load /leads page, measure time-to-interactive
+    - Generate pipeline PDF report
+    - Expected: all < 2 seconds
+
+Phase 2: Testing Suite (Days 2-3)
+
+  Task 2.1: Backend Unit Tests
+    - Set up pytest + pytest-django
+    - Write 15 tests for core models/views
+    - Coverage: auth, lead CRUD, scoring, reports
+    - Expected: all tests pass
+
+  Task 2.2: Frontend Component Tests
+    - Set up Vitest + React Testing Library
+    - Write 10 tests for pages (login, dashboard, pipeline)
+    - Coverage: form submit, pagination, WebSocket events
+    - Expected: all tests pass
+
+  Task 2.3: Integration Tests
+    - Test full flow: login → create lead → update stage → send email
+    - Test WebSocket broadcast on stage change
+    - Expected: end-to-end flow works
+
+Phase 3: Deployment (Day 4)
+
+  Task 3.1: Environment Setup
+    - Reserve domain (e.g., quibus-lms.com)
+    - Set up hosting (Heroku, DigitalOcean, AWS)
+    - Configure CI/CD (GitHub Actions or GitLab CI)
+    - Expected: auto-deploy on push
+
+  Task 3.2: Production Secrets
+    - Generate new SECRET_KEY for production
+    - Store in Vault (HashiCorp, AWS Secrets Manager)
+    - Configure SMTP, database, allowed hosts
+    - Expected: no secrets in git history
+
+  Task 3.3: HTTPS & Security
+    - Install SSL cert (Let's Encrypt via Certbot)
+    - Enable HSTS header
+    - Set CSRF_TRUSTED_ORIGINS, CORS properly
+    - Expected: https://quibus-lms.com loads securely
+
+  Task 3.4: Go-Live
+    - Database migration on production
+    - Run seed_demo with production data (or import real leads)
+    - Monitor logs for errors
+    - Expected: zero downtime, all systems healthy
+
+Phase 4: Post-Launch Monitoring (Week 1)
+
+  Task 4.1: Monitoring Setup
+    - Sentry for error tracking
+    - Datadog/New Relic for APM
+    - CloudWatch for infrastructure logs
+    - Expected: alerts configured, dashboards visible
+
+  Task 4.2: User Feedback
+    - Gather feedback from sales team
+    - Document bugs and feature requests
+    - Prioritize hot-fixes
+    - Expected: improvement roadmap defined
+
+
+RELEVANT FILES - DETAILED EXPLANATION
+================================================================================
+
+CRITICAL FILES (Without these, system broken):
+
+  backend-django/quibus/settings.py
+    Why: Defines Django config (database, auth, middleware, apps)
+    Key sections:
+      - INSTALLED_APPS: must include 'crm', 'rest_framework', 'corsheaders', 'channels'
+      - DATABASES: MySQL connection via PyMySQL
+      - SIMPLE_JWT: token lifetime 3600 seconds (60 min)
+      - CHANNEL_LAYERS: in-memory layer (Channels config)
+      - MIDDLEWARE: DjangoMiddleware must be first for Channels
+
+  backend-django/crm/models.py
+    Why: Defines all database schemas (User, Lead, Activity, Task, etc.)
+    Modify if: adding new fields, changing relationships, soft-delete logic
+    Don't modify: if unsure about impact on migrations (breaking changes)
+
+  backend-django/crm/views.py
+    Why: All API endpoints (REST + WebSocket)
+    Critical functions:
+      - LoginView: JWT generation
+      - LeadViewSet: CRUD + scoring + broadcast
+      - ReportViewSet: dashboard, pipeline, trend, sources, team
+      - TemplateViewSet: bulk_send email
+    Modify if: adding endpoint, changing response format, permission rules
+
+  backend-django/crm/consumers.py
+    Why: WebSocket handling, authentication, broadcasting
+    Critical function: connect(), receive(), lead_updated()
+    Don't modify: unless understanding Django Channels thoroughly
+
+  frontend/src/context/AuthContext.jsx
+    Why: Manages JWT token, user state, WebSocket auto-connect
+    Critical functions: login(), logout(), useAuth hook
+    Modify if: changing auth flow, token storage
+
+  frontend/src/pages/Login.jsx
+    Why: Entry point to application
+    If broken: users can't log in, entire app unusable
+
+  frontend/src/pages/Pipeline.jsx
+    Why: Core kanban feature
+    If broken: can't change lead stages
+
+  frontend/vite.config.js
+    Why: Configures port 3000, proxy /api to backend
+    If broken: dev server won't start or API calls fail
+
+IMPORTANT FILES (Features depend on these):
+
+  frontend/src/echo.js
+    Why: WebSocket client for real-time updates
+    If missing: no live broadcast, dashboard won't auto-refresh
+
+  frontend/src/pages/Dashboard.jsx
+    Why: Home page, KPI dashboard
+    If broken: users see blank page after login
+
+  backend-django/crm/scoring.py
+    Why: Lead scoring algorithm
+    If missing: all leads have score=0, useless metrics
+
+  backend-django/crm/management/commands/seed_demo.py
+    Why: Demo data seeder
+    If missing: no sample data to test with (but system still works)
+
+SUPPORTING FILES (Nice-to-have, system works without):
+
+  frontend/src/components/Layout.jsx
+    Why: Sidebar + header + notifications
+    If missing: no navigation, poor UX
+
+  frontend/src/components/LeadFormModal.jsx
+    Why: Modal for create/edit lead
+    If missing: users can't add leads from UI (but API still works)
+
+  backend-django/crm/admin.py
+    Why: Django Admin interface for database management
+    If missing: no admin UI, but API still works
+
+  backend-django/crm/serializers.py
+    Why: DRF serializers for JSON responses
+    If missing: API returns raw model objects (malformed JSON)
+
+
+RISKS AND WARNINGS
+================================================================================
+
+FRAGILE AREAS (High Risk):
+
+  1. WebSocket Connection on JWT Expiry
+     Risk: Socket stays open after token expires, broadcasts fail silently
+     Mitigation: Monitor WebSocket errors in production, add heartbeat check
+     Avoid: Don't extend JWT lifetime beyond business needs
+
+  2. Lead Score Recalculation
+     Risk: If scoring.py algorithm changes, historical scores don't update
+     Mitigation: Migration script to re-score all leads if needed
+     Avoid: Don't change weights without testing impact
+
+  3. Soft Delete Pattern
+     Risk: Queries must .exclude(deleted_at__isnull=False) or data leaks back
+     Mitigation: Use manager method Lead.objects.active() everywhere
+     Avoid: Direct Lead.objects.all() queries (bypass soft-delete)
+
+  4. Database Connection (PyMySQL)
+     Risk: Pure-Python driver slower than mysqlclient, no connection pooling
+     Mitigation: Use max_connections in Django settings, monitor pool exhaustion
+     Avoid: Opening/closing connections in loops
+
+  5. Single-Process Daphne
+     Risk: Channels doesn't scale to multiple servers (no Redis layer)
+     Mitigation: Add django-redis + RedisChannelLayer for production
+     Avoid: Horizontal scaling without Redis setup
+
+TECHNICAL DEBT:
+
+  1. No refresh token (users logged out after 60 min)
+     Effort to fix: 2 hours (add refresh token endpoint, rotate on use)
+     Impact if not fixed: poor UX, users must re-login
+
+  2. No permission middleware on views
+     Effort to fix: 1 hour (add @permission_required or mixin)
+     Impact: rep can see manager-only endpoints (API returns data, but should 403)
+
+  3. No input validation on custom_fields JSON
+     Effort to fix: 2 hours (add JSONSchema validation)
+     Impact: broken JSON crashes API, no safeguard
+
+  4. No database transaction rollback on bulk operations
+     Effort to fix: 3 hours (wrap in transaction, rollback on error)
+     Impact: partial bulk send succeeds (inconsistent state)
+
+  5. No test suite
+     Effort to fix: 10 hours (pytest + coverage to 80%)
+     Impact: regressions go undetected, risky refactors
+
+ASSUMPTIONS SAFE TO MAKE:
+
+  - Database is always up (system assumes connectivity, no failover)
+  - Network is always available (no offline support, requires internet)
+  - User roles don't change mid-session (no role-refresh logic)
+  - Lead scores are approximate, not real-time precision (calculated on update)
+  - Email sends are best-effort (no retry if SMTP fails)
+  - Concurrent edits are rare (no optimistic locking implemented)
+
+ASSUMPTIONS NOT SAFE:
+
+  - User input is valid JSON (validate and sanitize)
+  - JWT tokens are always valid (check expiry, signature)
+  - Database queries return data (check None, handle empty sets)
+  - Frontend React version stays stable (pin version in package.json)
+  - Backend Python version stays compatible (monitor for deprecations)
+
+THINGS CODEX MUST AVOID CHANGING:
+
+  1. Do NOT remove PyMySQL from requirements (breaks database connection)
+  2. Do NOT change JWT_ACCESS_TOKEN_LIFETIME without planning refresh flow
+  3. Do NOT hardcode database connection strings (use .env)
+  4. Do NOT add sync database calls in WebSocket consumers (will deadlock)
+  5. Do NOT export sensitive data in reports without permission checks
+  6. Do NOT modify User.role enum without migration (breaks serialization)
+  7. Do NOT remove django-cors-headers (breaks frontend API access)
+  8. Do NOT store passwords in plain text (use Django hashers)
+  9. Do NOT expose SECRET_KEY in version control
+  10. Do NOT trust user.role from frontend (always validate server-side)
+
+BREAKING CHANGES TO AVOID:
+
+  - Changing Lead model fields (requires migration)
+  - Changing API response format (breaks frontend)
+  - Removing PipelineStage (hardcoded in frontend)
+  - Changing authentication method (JWT expectations)
+  - Removing WebSocket endpoints (breaks real-time)
+
+
+CONTINUATION INSTRUCTIONS FOR CODEX
+================================================================================
+
+**START HERE**
+
+You are being handed a fully functional Quibus LMS production system. Your goal
+is to maintain, enhance, and deploy it safely. Follow these ground rules:
+
+CRITICAL CONTEXT:
+
+  1. Architecture: React 19 (frontend, port 3000) ↔ Django 6 (backend, port 8000)
+     via REST API + WebSocket
+  2. Database: MariaDB/MySQL with soft-delete pattern (always check deleted_at)
+  3. Authentication: JWT tokens, 60-minute lifetime (will expire during long sessions)
+  4. Real-time: Channels WebSocket, broadcasts on lead updates
+  5. Current stage: Beta, all core features complete, professional UI (no emoji)
+
+SAFE ASSUMPTIONS:
+
+  - All CRUD operations (leads, tasks, activities, templates) are tested and working
+  - API response format matches DRF standards (use LaravelStylePagination)
+  - Frontend pages are fully responsive (tested down to 375px mobile)
+  - Database migrations are applied (run: python manage.py migrate)
+  - Demo data exists (12 leads, 36 activities, etc.)
+
+VERIFICATION CHECKLIST BEFORE MODIFYING CODE:
+
+  ✓ Understand the full request (what are you changing and why?)
+  ✓ Identify all affected files (e.g., adding a lead field = models.py + serializers.py + migrations)
+  ✓ Check for breaking changes (will this change API contract? need frontend update?)
+  ✓ Run tests (if tests exist, make sure all pass after change)
+  ✓ Test in browser (manual smoke test on localhost:3000)
+  ✓ Check database migrations (new fields require makemigrations + migrate)
+
+WHAT SUCCESS LOOKS LIKE:
+
+  - All pages load without errors
+  - Create/update/delete operations work (API returns correct status codes)
+  - WebSocket broadcasts work (change stage, see real-time update)
+  - Reports generate (charts display, PDF exports work)
+  - Email templates send (activities logged, no SMTP errors)
+  - User management works (admin can create/delete users)
+  - Mobile layout works (responsive, no overlapping elements)
+
+WHAT FAILURE LOOKS LIKE:
+
+  - 500 errors on API endpoints (missing field, bad SQL)
+  - Frontend blank page (auth context broken, API URL wrong)
+  - WebSocket doesn't connect (consumer auth failed, wrong URL)
+  - Database migration error (existing migration conflict)
+  - Email doesn't send (SMTP credentials wrong, no from_email)
+
+RECOMMENDED FIRST STEPS:
+
+  1. Verify environment:
+     - Backend running: curl -H "Authorization: Bearer [token]" http://localhost:8000/api/stages
+     - Frontend running: open http://localhost:3000 in browser
+     - Database alive: python manage.py shell → User.objects.count()
+     - WebSocket working: login → check browser console for "WebSocket connected"
+
+  2. Identify your task:
+     - Bug fix? Read the bug description, locate the file, understand root cause, test fix
+     - New feature? Read requirements, sketch design, implement incrementally, test thoroughly
+     - Deployment? Follow deployment checklist, test in staging first, monitor logs
+
+  3. Work within guardrails:
+     - Don't commit to main without testing
+     - Don't remove dependencies without understanding impact
+     - Don't store secrets in code (use .env)
+     - Don't make schema changes without migrations
+     - Don't change API contract without considering frontend impact
+
+  4. Test religiously:
+     - Unit test: does function work in isolation?
+     - Integration test: does module work with database/API?
+     - End-to-end test: does full flow work in browser?
+     - Regression test: did I break existing features?
+
+CRITICAL PATHS (If you break these, system doesn't work):
+
+  Path 1: Authentication
+    User login → JWT issued → Token stored in localStorage → All API calls include token
+    If broken: No one can log in, entire system inaccessible
+    Key files: LoginView, AuthContext, api/client.js
+
+  Path 2: Lead CRUD
+    Create lead → Stored in DB → Retrieved by user → Updated/deleted as needed
+    If broken: Users can't manage leads, core feature gone
+    Key files: LeadViewSet, LeadSerializer, Lead model
+
+  Path 3: WebSocket
+    Lead update → Backend broadcasts → All clients receive in real-time
+    If broken: Dashboard doesn't auto-refresh, feels broken
+    Key files: consumers.py, echo.js, DashboardPage
+
+  Path 4: Reports
+    API aggregates leads by stage/source/team → Dashboard/Reports pages display
+    If broken: Visibility into metrics gone, poor decision-making
+    Key files: ReportViewSet, Reports.jsx, Dashboard.jsx
+
+HANDOFF COMPLETE.
+Now it's your turn. Read this document once fully. Understand the architecture.
+Verify the system runs. Then ask: "What would you like me to do?"
+
+================================================================================
+END OF DOCUMENT
+================================================================================

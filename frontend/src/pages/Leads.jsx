@@ -1,36 +1,113 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Download, Plus, Upload, Search } from 'lucide-react'
+import { ChevronRight, Download, MoreHorizontal, Plus, Search, Upload } from 'lucide-react'
 import client from '../api/client'
 import { useAuth } from '../context/AuthContext.jsx'
 import LeadFormModal from '../components/LeadFormModal.jsx'
 
 const inr = (n) => '₹' + Number(n).toLocaleString('en-IN')
 
+function StageTabBar({ stages, stageCounts, unreadCount, activeTab, onSelect }) {
+  const [expanded, setExpanded] = useState(false)
+  const OVERFLOW_AT = 5
+
+  const stageItems = stages.map((s) => ({
+    id: String(s.id),
+    label: s.name,
+    count: stageCounts[s.id] ?? 0,
+  }))
+
+  const overflow = !expanded && stageItems.length > OVERFLOW_AT
+  const visibleStages = overflow ? stageItems.slice(0, OVERFLOW_AT) : stageItems
+
+  const tabCls = (id) =>
+    `whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+      activeTab === id
+        ? 'bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600'
+        : 'text-slate-600 hover:bg-white hover:text-slate-900'
+    }`
+
+  return (
+    <div className="flex items-center gap-0 overflow-x-auto rounded-xl bg-slate-100 p-1 scrollbar-none">
+      <button onClick={() => onSelect('')} className={tabCls('')}>
+        All
+      </button>
+
+      <div className="mx-2 h-5 w-px shrink-0 bg-slate-300" />
+
+      <button onClick={() => onSelect('unread')} className={tabCls('unread')}>
+        Unread
+        {unreadCount > 0 && (
+          <span className="ml-1.5 text-xs font-normal text-slate-400">{unreadCount}</span>
+        )}
+      </button>
+
+      {visibleStages.map((stage) => (
+        <div key={stage.id} className="flex shrink-0 items-center">
+          <ChevronRight className="mx-0.5 h-3 w-3 shrink-0 text-slate-400" />
+          <button onClick={() => onSelect(stage.id)} className={tabCls(stage.id)}>
+            {stage.label}
+            <span className="ml-1.5 text-xs font-normal text-slate-400">{stage.count}</span>
+          </button>
+        </div>
+      ))}
+
+      {stageItems.length > OVERFLOW_AT && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="ml-1 shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-white hover:text-slate-600"
+          title={expanded ? 'Show fewer' : 'Show all stages'}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function Leads() {
   const { user } = useAuth()
   const [page, setPage] = useState(null)
   const [search, setSearch] = useState('')
-  const [stageId, setStageId] = useState('')
+  const [activeTab, setActiveTab] = useState('')
   const [source, setSource] = useState('')
   const [stages, setStages] = useState([])
+  const [stageCounts, setStageCounts] = useState({})
+  const [unreadCount, setUnreadCount] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [importing, setImporting] = useState(false)
   const fileRef = useRef(null)
 
-  const load = (p = 1) =>
-    client
-      .get('leads', { params: { page: p, search: search || undefined, stage_id: stageId || undefined, source: source || undefined } })
-      .then((r) => setPage(r.data))
+  const load = (p = 1) => {
+    const params = { page: p, search: search || undefined, source: source || undefined }
+    if (activeTab === 'unread') {
+      params.unread = '1'
+    } else if (activeTab !== '') {
+      params.stage_id = activeTab
+    }
+    client.get('leads', { params }).then((r) => setPage(r.data))
+  }
+
+  const refreshCounts = () => {
+    client.get('reports/pipeline').then((r) => {
+      const counts = {}
+      r.data.forEach((s) => { counts[s.id] = s.leads_count })
+      setStageCounts(counts)
+    })
+    client.get('leads', { params: { unread: '1', per_page: 1 } }).then((r) => {
+      setUnreadCount(r.data.total ?? 0)
+    })
+  }
 
   useEffect(() => {
     client.get('stages').then((r) => setStages(r.data))
+    refreshCounts()
   }, [])
 
   useEffect(() => {
     const t = setTimeout(() => load(1), 300)
     return () => clearTimeout(t)
-  }, [search, stageId, source])
+  }, [search, activeTab, source])
 
   const exportCsv = async () => {
     const res = await client.get('exports/leads.csv', { responseType: 'blob' })
@@ -55,6 +132,7 @@ export default function Leads() {
       const res = await client.post('leads-import', { leads })
       alert(res.data.message)
       load(1)
+      refreshCounts()
     } catch (err) {
       alert(err.response?.data?.message || 'Import failed. Expected CSV with first_name,last_name,email,phone,company columns.')
     } finally {
@@ -91,12 +169,6 @@ export default function Leads() {
             className="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none"
           />
         </div>
-        <select value={stageId} onChange={(e) => setStageId(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-          <option value="">All stages</option>
-          {stages.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
         <select value={source} onChange={(e) => setSource(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
           <option value="">All sources</option>
           {['web_form', 'referral', 'google_ads', 'facebook_ads', 'cold_call', 'linkedin', 'manual', 'import'].map((s) => (
@@ -104,6 +176,14 @@ export default function Leads() {
           ))}
         </select>
       </div>
+
+      <StageTabBar
+        stages={stages}
+        stageCounts={stageCounts}
+        unreadCount={unreadCount}
+        activeTab={activeTab}
+        onSelect={setActiveTab}
+      />
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -170,6 +250,7 @@ export default function Leads() {
           onSaved={() => {
             setShowForm(false)
             load(1)
+            refreshCounts()
           }}
         />
       )}

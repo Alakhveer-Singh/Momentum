@@ -5,6 +5,7 @@ import client from '../api/client'
 import {
   Bell,
   CheckSquare,
+  Filter,
   LayoutDashboard,
   Mail,
   Menu,
@@ -23,6 +24,7 @@ const nav = [
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
   { to: '/templates', label: 'Email Templates', icon: Mail },
   { to: '/reports', label: 'Reports', icon: TrendingUp },
+  { to: '/funnel', label: 'Lead Funnel', icon: Filter },
 ]
 
 export default function Layout() {

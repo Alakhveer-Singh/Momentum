@@ -10,6 +10,7 @@ import Tasks from './pages/Tasks.jsx'
 import Templates from './pages/Templates.jsx'
 import Reports from './pages/Reports.jsx'
 import Users from './pages/Users.jsx'
+import FunnelSettings from './pages/FunnelSettings.jsx'
 import Profile from './pages/Profile.jsx'
 
 function Protected({ children }) {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="templates" element={<Templates />} />
         <Route path="reports" element={<Reports />} />
         <Route path="users" element={<Users />} />
+        <Route path="funnel" element={<FunnelSettings />} />
         <Route path="profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

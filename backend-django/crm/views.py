@@ -146,6 +146,64 @@ def stages_view(request):
     return Response(PipelineStageSerializer(PipelineStage.objects.all(), many=True).data)
 
 
+@api_view(["POST"])
+def stage_create_view(request):
+    if request.user.role not in ("admin", "manager"):
+        return Response({"detail": "Forbidden"}, status=403)
+    name = (request.data.get("name") or "").strip()
+    if not name:
+        return Response({"detail": "Name required"}, status=400)
+    color = request.data.get("color", "#6366f1")
+    max_pos = PipelineStage.objects.filter(stage_type="middle").aggregate(m=__import__("django.db.models", fromlist=["Max"]).Max("position"))["m"] or 0
+    import re
+    slug_base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    slug = slug_base
+    n = 1
+    while PipelineStage.objects.filter(slug=slug).exists():
+        slug = f"{slug_base}-{n}"
+        n += 1
+    stage = PipelineStage.objects.create(name=name, slug=slug, position=max_pos + 1, color=color, stage_type="middle")
+    return Response(PipelineStageSerializer(stage).data, status=201)
+
+
+@api_view(["PATCH"])
+def stage_update_view(request, pk):
+    if request.user.role not in ("admin", "manager"):
+        return Response({"detail": "Forbidden"}, status=403)
+    stage = PipelineStage.objects.get(pk=pk)
+    if stage.stage_type != "middle":
+        return Response({"detail": "Cannot rename fixed stages"}, status=400)
+    if name := (request.data.get("name") or "").strip():
+        stage.name = name
+    if color := request.data.get("color"):
+        stage.color = color
+    stage.save()
+    return Response(PipelineStageSerializer(stage).data)
+
+
+@api_view(["DELETE"])
+def stage_delete_view(request, pk):
+    if request.user.role not in ("admin", "manager"):
+        return Response({"detail": "Forbidden"}, status=403)
+    stage = PipelineStage.objects.get(pk=pk)
+    if stage.stage_type != "middle":
+        return Response({"detail": "Cannot delete fixed stages"}, status=400)
+    entry = PipelineStage.objects.filter(stage_type="entry").first()
+    Lead.objects.filter(stage=stage).update(stage=entry)
+    stage.delete()
+    return Response(status=204)
+
+
+@api_view(["POST"])
+def stage_reorder_view(request):
+    if request.user.role not in ("admin", "manager"):
+        return Response({"detail": "Forbidden"}, status=403)
+    ids = request.data.get("ids", [])
+    for pos, sid in enumerate(ids, start=2):
+        PipelineStage.objects.filter(pk=sid, stage_type="middle").update(position=pos)
+    return Response({"ok": True})
+
+
 @api_view(["GET"])
 def custom_fields_view(request):
     return Response(CustomFieldDefinitionSerializer(CustomFieldDefinition.objects.all(), many=True).data)
@@ -181,6 +239,8 @@ class LeadViewSet(viewsets.ModelViewSet):
             qs = qs.filter(source=source)
         if owner_id := p.get("owner_id"):
             qs = qs.filter(owner_id=owner_id)
+        if p.get("unread") == "1":
+            qs = qs.filter(activities_count=0)
         sort = p.get("sort")
         if sort in ("created_at", "score", "value", "last_activity_at"):
             qs = qs.order_by(sort if p.get("direction") == "asc" else f"-{sort}")

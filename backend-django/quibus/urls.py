@@ -22,6 +22,10 @@ api = [
     path("auth/profile", views.profile_view),
     # Reference
     path("stages", views.stages_view),
+    path("stages/reorder", views.stage_reorder_view),
+    path("stages/create", views.stage_create_view),
+    path("stages/<int:pk>", views.stage_update_view),
+    path("stages/<int:pk>/delete", views.stage_delete_view),
     path("custom-fields", views.custom_fields_view),
     # Leads extras
     path("leads-import", views.bulk_import_view),

@@ -54,7 +54,7 @@ class PipelineStageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PipelineStage
-        fields = ["id", "name", "slug", "position", "color", "is_won", "is_lost", "leads_count", "total_value"]
+        fields = ["id", "name", "slug", "position", "color", "stage_type", "is_won", "is_lost", "leads_count", "total_value"]
 
 
 class CustomFieldDefinitionSerializer(serializers.ModelSerializer):

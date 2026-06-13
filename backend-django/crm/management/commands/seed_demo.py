@@ -26,19 +26,20 @@ class Command(BaseCommand):
             model.objects.all().delete()
         User.objects.all().delete()
 
-        # Pipeline stages
+        # Pipeline stages  (name, slug, pos, color, is_won, is_lost, stage_type)
         stage_defs = [
-            ("New", "new", 1, "#3b82f6", False, False),
-            ("Contacted", "contacted", 2, "#8b5cf6", False, False),
-            ("Qualified", "qualified", 3, "#f59e0b", False, False),
-            ("Negotiating", "negotiating", 4, "#f97316", False, False),
-            ("Won", "won", 5, "#22c55e", True, False),
-            ("Lost", "lost", 6, "#ef4444", False, True),
+            ("New", "new", 1, "#3b82f6", False, False, "entry"),
+            ("Contacted", "contacted", 2, "#8b5cf6", False, False, "middle"),
+            ("Qualified", "qualified", 3, "#f59e0b", False, False, "middle"),
+            ("Negotiating", "negotiating", 4, "#f97316", False, False, "middle"),
+            ("Won", "won", 5, "#22c55e", True, False, "won"),
+            ("Lost", "lost", 6, "#ef4444", False, True, "lost"),
         ]
         stages = {}
-        for name, slug, pos, color, won, lost in stage_defs:
+        for name, slug, pos, color, won, lost, stype in stage_defs:
             stages[slug] = PipelineStage.objects.create(
-                name=name, slug=slug, position=pos, color=color, is_won=won, is_lost=lost
+                name=name, slug=slug, position=pos, color=color,
+                is_won=won, is_lost=lost, stage_type=stype
             )
 
         # Users

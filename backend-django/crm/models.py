@@ -25,10 +25,22 @@ class User(AbstractUser):
 
 
 class PipelineStage(models.Model):
+    TYPE_ENTRY = "entry"
+    TYPE_MIDDLE = "middle"
+    TYPE_WON = "won"
+    TYPE_LOST = "lost"
+    STAGE_TYPES = [
+        (TYPE_ENTRY, "Entry"),
+        (TYPE_MIDDLE, "Middle"),
+        (TYPE_WON, "Won"),
+        (TYPE_LOST, "Lost"),
+    ]
+
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     position = models.PositiveIntegerField(default=0)
     color = models.CharField(max_length=20, default="#6366f1")
+    stage_type = models.CharField(max_length=20, choices=STAGE_TYPES, default=TYPE_MIDDLE)
     is_won = models.BooleanField(default=False)
     is_lost = models.BooleanField(default=False)
 
