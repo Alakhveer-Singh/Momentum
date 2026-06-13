@@ -2,16 +2,32 @@
 
 Professional lead management system: pipeline kanban, lead scoring, activity tracking, tasks, email templates, reports, role-based access, and real-time notifications.
 
+## Two interchangeable backends
+
+The same React frontend runs against **either** backend — identical `/api` routes and JSON shapes.
+
+| | `backend/` (Laravel) | `backend-django/` (Django) |
+|---|---|---|
+| Framework | PHP 8.2 / Laravel 13 | Python 3 / Django 6 + DRF |
+| JWT auth | tymon/jwt-auth | djangorestframework-simplejwt |
+| Sessions | Laravel session | Django sessions + SessionAuthentication |
+| DB driver | native PDO | PyMySQL (pure Python) |
+| Realtime | Reverb + Laravel Echo (Pusher) | Channels + Daphne (native WS) |
+| PDF | dompdf | reportlab |
+| Admin CMS | — | Django Admin at `/admin/` |
+| Setup | [backend/README is below](#local-setup) | [backend-django/README.md](backend-django/README.md) |
+
+Run **one** backend on `:8000`; the frontend talks to whichever is up.
+
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React 19 + Vite + Tailwind CSS 4 + React Router 7 |
-| Backend | PHP 8.2+ / Laravel 13 |
-| Database | MySQL / MariaDB |
-| Auth | JWT (`tymon/jwt-auth`) |
-| Real-time | Laravel Reverb (Pusher protocol) + Laravel Echo |
-| PDF export | `barryvdh/laravel-dompdf` |
+| Backend | PHP 8.2 / Laravel 13 — or — Python 3 / Django 6 + DRF |
+| Database | MariaDB / MySQL |
+| Auth | JWT + session |
+| Real-time | WebSockets (Reverb/Echo or Django Channels) |
 
 ## Features
 

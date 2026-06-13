@@ -3,3 +3,10 @@ backend/.env
 frontend/node_modules/
 frontend/dist/
 .DS_Store
+
+# Django
+backend-django/.venv/
+backend-django/.env
+backend-django/db.sqlite3
+__pycache__/
+*.pyc

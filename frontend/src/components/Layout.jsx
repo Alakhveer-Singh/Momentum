@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import client from '../api/client'
-import { connectEcho } from '../echo'
+import { connectEcho, realtime } from '../echo'
 
 const nav = [
   { to: '/', label: 'Dashboard', icon: '📊', end: true },
@@ -30,9 +30,9 @@ export default function Layout() {
   useEffect(() => {
     loadNotifs()
     const token = localStorage.getItem('token')
-    const echo = connectEcho(token)
+    connectEcho(token)
 
-    echo.private('leads').listen('.lead.updated', (e) => {
+    const offLead = realtime.on('lead.updated', (e) => {
       if (e.action !== 'updated' && 'Notification' in window && Notification.permission === 'granted') {
         new Notification('Quibus LMS', {
           body: `Lead ${e.lead.full_name} ${e.action === 'created' ? 'captured' : e.action} (${e.lead.stage ?? ''})`,
@@ -41,16 +41,16 @@ export default function Layout() {
       window.dispatchEvent(new CustomEvent('lead-updated', { detail: e }))
     })
 
-    echo.private(`App.Models.User.${user.id}`).notification((n) => {
+    const offNotif = realtime.on('notification', (msg) => {
       loadNotifs()
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Quibus LMS', { body: n.message ?? 'New notification' })
+        new Notification('Quibus LMS', { body: msg.payload?.message ?? 'New notification' })
       }
     })
 
     return () => {
-      echo.leave('leads')
-      echo.leave(`App.Models.User.${user.id}`)
+      offLead()
+      offNotif()
     }
   }, [user.id])
 
