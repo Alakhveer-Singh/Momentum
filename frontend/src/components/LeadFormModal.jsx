@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Plus, X } from 'lucide-react'
 import client from '../api/client'
+
+const PROFILES = ['Student', 'Fresher', 'Working Professional', 'Business Owner', 'Home Maker']
+const EDUCATION = ['XII', 'UnderGraduate', 'Graduate', 'Post Graduate', 'PHD']
+
+const cf = (lead, key) => lead?.custom_fields?.[key] ?? ''
 
 export default function LeadFormModal({ lead, stages, canAssign, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -7,31 +13,68 @@ export default function LeadFormModal({ lead, stages, canAssign, onClose, onSave
     last_name: lead?.last_name ?? '',
     email: lead?.email ?? '',
     phone: lead?.phone ?? '',
-    company: lead?.company ?? '',
-    job_title: lead?.job_title ?? '',
+    city: cf(lead, 'city'),
+    location: cf(lead, 'location'),
+    current_profile: cf(lead, 'current_profile'),
+    highest_education: cf(lead, 'highest_education'),
+    notes: lead?.notes ?? cf(lead, 'notes'),
     source: lead?.source ?? 'manual',
     stage_id: lead?.stage_id ?? '',
     owner_id: lead?.owner_id ?? '',
     value: lead?.value ?? '',
-    notes: lead?.notes ?? '',
   })
+  const [extraPhones, setExtraPhones] = useState(lead?.custom_fields?.extra_phones ?? [])
+  const [whatsapp, setWhatsapp] = useState(cf(lead, 'whatsapp'))
+  const [waSameAsMobile, setWaSameAsMobile] = useState(
+    !!lead?.phone && lead?.phone === cf(lead, 'whatsapp')
+  )
   const [users, setUsers] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (canAssign) {
-      client.get('users').then((r) => setUsers(r.data)).catch(() => {})
-    }
+    if (canAssign) client.get('users').then((r) => setUsers(r.data.data ?? r.data)).catch(() => {})
   }, [canAssign])
 
+  useEffect(() => {
+    if (waSameAsMobile) setWhatsapp(form.phone)
+  }, [waSameAsMobile, form.phone])
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const addPhone = () => setExtraPhones((p) => [...p, ''])
+  const setPhone = (i, val) => setExtraPhones((p) => p.map((v, idx) => (idx === i ? val : v)))
+  const removePhone = (i) => setExtraPhones((p) => p.filter((_, idx) => idx !== i))
 
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true)
     setError('')
-    const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ''))
+    const custom_fields = {
+      city: form.city,
+      location: form.location || undefined,
+      current_profile: form.current_profile,
+      highest_education: form.highest_education || undefined,
+      whatsapp: whatsapp || undefined,
+      extra_phones: extraPhones.filter(Boolean).length ? extraPhones.filter(Boolean) : undefined,
+      notes: form.notes || undefined,
+    }
+    // strip undefined keys
+    Object.keys(custom_fields).forEach((k) => custom_fields[k] === undefined && delete custom_fields[k])
+
+    const payload = {
+      first_name: form.first_name,
+      last_name: form.last_name,
+      email: form.email || undefined,
+      phone: form.phone,
+      source: form.source,
+      custom_fields,
+    }
+    if (form.stage_id) payload.stage_id = form.stage_id
+    if (form.owner_id) payload.owner_id = form.owner_id
+    if (form.value) payload.value = form.value
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
+
     try {
       if (lead) await client.put(`leads/${lead.id}`, payload)
       else await client.post('leads', payload)
@@ -43,43 +86,176 @@ export default function LeadFormModal({ lead, stages, canAssign, onClose, onSave
     }
   }
 
-  const input = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none'
+  const inp = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none'
+  const label = 'block text-xs font-medium text-slate-500 mb-1'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-4 text-lg font-bold">{lead ? 'Edit Lead' : 'New Lead'}</h2>
-        <form onSubmit={submit} className="grid grid-cols-2 gap-3">
-          <input className={input} placeholder="First name *" required value={form.first_name} onChange={set('first_name')} />
-          <input className={input} placeholder="Last name" value={form.last_name} onChange={set('last_name')} />
-          <input className={input} type="email" placeholder="Email" value={form.email} onChange={set('email')} />
-          <input className={input} placeholder="Phone" value={form.phone} onChange={set('phone')} />
-          <input className={input} placeholder="Company" value={form.company} onChange={set('company')} />
-          <input className={input} placeholder="Job title" value={form.job_title} onChange={set('job_title')} />
-          <select className={input} value={form.source} onChange={set('source')}>
-            {['manual', 'web_form', 'referral', 'google_ads', 'facebook_ads', 'cold_call', 'linkedin'].map((s) => (
-              <option key={s} value={s}>{s.replace('_', ' ')}</option>
+      <div
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="mb-5 text-lg font-bold">{lead ? 'Edit Lead' : 'New Lead'}</h2>
+        <form onSubmit={submit} className="space-y-4">
+
+          {/* Name row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label}>First Name <span className="text-red-500">*</span></label>
+              <input className={inp} required value={form.first_name} onChange={set('first_name')} placeholder="First name" />
+            </div>
+            <div>
+              <label className={label}>Last Name <span className="text-red-500">*</span></label>
+              <input className={inp} required value={form.last_name} onChange={set('last_name')} placeholder="Last name" />
+            </div>
+          </div>
+
+          {/* Mobile No. (multiple) */}
+          <div>
+            <label className={label}>Mobile No. <span className="text-red-500">*</span></label>
+            <input
+              className={inp}
+              required
+              type="tel"
+              value={form.phone}
+              onChange={set('phone')}
+              placeholder="+91 9876543210"
+            />
+            {extraPhones.map((ph, i) => (
+              <div key={i} className="mt-2 flex gap-2">
+                <input
+                  className={inp}
+                  type="tel"
+                  value={ph}
+                  onChange={(e) => setPhone(i, e.target.value)}
+                  placeholder={`Additional mobile ${i + 2}`}
+                />
+                <button type="button" onClick={() => removePhone(i)} className="shrink-0 rounded-lg p-2 text-red-400 hover:bg-red-50">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             ))}
-          </select>
-          <select className={input} value={form.stage_id} onChange={set('stage_id')}>
-            <option value="">Stage: New</option>
-            {stages.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          {canAssign && (
-            <select className={input} value={form.owner_id} onChange={set('owner_id')}>
-              <option value="">Assign to me</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
+            <button
+              type="button"
+              onClick={addPhone}
+              className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+            >
+              <Plus className="h-3 w-3" /> Add another number
+            </button>
+          </div>
+
+          {/* WhatsApp */}
+          <div>
+            <label className={label}>WhatsApp No. <span className="text-red-500">*</span></label>
+            <label className="mb-2 flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={waSameAsMobile}
+                onChange={(e) => setWaSameAsMobile(e.target.checked)}
+                className="rounded"
+              />
+              Same as mobile number
+            </label>
+            {!waSameAsMobile && (
+              <input
+                className={inp}
+                required={!waSameAsMobile}
+                type="tel"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="+91 9876543210"
+              />
+            )}
+            {waSameAsMobile && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                {form.phone || '—'}
+              </div>
+            )}
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className={label}>Email Id</label>
+            <input className={inp} type="email" value={form.email} onChange={set('email')} placeholder="email@example.com" />
+          </div>
+
+          {/* City + Location */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label}>City <span className="text-red-500">*</span></label>
+              <input className={inp} required value={form.city} onChange={set('city')} placeholder="e.g. Mumbai" />
+            </div>
+            <div>
+              <label className={label}>Location</label>
+              <input className={inp} value={form.location} onChange={set('location')} placeholder="Area / Locality" />
+            </div>
+          </div>
+
+          {/* Current Profile */}
+          <div>
+            <label className={label}>Current Profile <span className="text-red-500">*</span></label>
+            <select className={inp} required value={form.current_profile} onChange={set('current_profile')}>
+              <option value="">Select profile…</option>
+              {PROFILES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
-          )}
-          <input className={input} type="number" min="0" placeholder="Deal value (₹)" value={form.value} onChange={set('value')} />
-          <textarea className={`${input} col-span-2`} rows={3} placeholder="Notes" value={form.notes} onChange={set('notes')} />
-          {error && <div className="col-span-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
-          <div className="col-span-2 flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">
+          </div>
+
+          {/* Highest Education */}
+          <div>
+            <label className={label}>Highest Education</label>
+            <select className={inp} value={form.highest_education} onChange={set('highest_education')}>
+              <option value="">Select education…</option>
+              {EDUCATION.map((e) => <option key={e} value={e}>{e}</option>)}
+            </select>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className={label}>Notes</label>
+            <textarea className={inp} rows={3} value={form.notes} onChange={set('notes')} placeholder="Any additional notes…" />
+          </div>
+
+          {/* Optional CRM fields (collapsed visually) */}
+          <details className="rounded-lg border border-slate-200">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700">
+              CRM fields (source, stage, owner, deal value)
+            </summary>
+            <div className="grid grid-cols-2 gap-3 p-3">
+              <div>
+                <label className={label}>Source</label>
+                <select className={inp} value={form.source} onChange={set('source')}>
+                  {['manual', 'web_form', 'referral', 'google_ads', 'facebook_ads', 'cold_call', 'linkedin'].map((s) => (
+                    <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={label}>Stage</label>
+                <select className={inp} value={form.stage_id} onChange={set('stage_id')}>
+                  <option value="">New (default)</option>
+                  {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              {canAssign && (
+                <div>
+                  <label className={label}>Assign to</label>
+                  <select className={inp} value={form.owner_id} onChange={set('owner_id')}>
+                    <option value="">Me</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className={label}>Deal Value (₹)</label>
+                <input className={inp} type="number" min="0" value={form.value} onChange={set('value')} placeholder="0" />
+              </div>
+            </div>
+          </details>
+
+          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
               Cancel
             </button>
             <button disabled={busy} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
