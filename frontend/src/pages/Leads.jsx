@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Download, Plus, Upload, Search } from 'lucide-react'
 import client from '../api/client'
 import { useAuth } from '../context/AuthContext.jsx'
 import LeadFormModal from '../components/LeadFormModal.jsx'
@@ -67,26 +68,29 @@ export default function Leads() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold">Leads</h1>
         <div className="flex flex-wrap gap-2">
-          <button onClick={exportCsv} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-            ⬇ Export CSV
+          <button onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+            <Download className="h-4 w-4" /> Export CSV
           </button>
-          <label className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-            {importing ? 'Importing…' : '⬆ Import CSV'}
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+            <Upload className="h-4 w-4" /> {importing ? 'Importing…' : 'Import CSV'}
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files[0] && importCsv(e.target.files[0])} />
           </label>
-          <button onClick={() => setShowForm(true)} className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-            + New Lead
+          <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+            <Plus className="h-4 w-4" /> New Lead
           </button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <input
-          placeholder="Search name, email, company…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-        />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            placeholder="Search name, email, company…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
         <select value={stageId} onChange={(e) => setStageId(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
           <option value="">All stages</option>
           {stages.map((s) => (

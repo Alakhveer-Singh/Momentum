@@ -1,8 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Phone, Mail, Users, FileText, GitBranch, Settings, CircleDot } from 'lucide-react'
 import client from '../api/client'
 
 const inr = (n) => '₹' + Number(n).toLocaleString('en-IN')
+
+const ACTIVITY_ICON = {
+  call: Phone,
+  email: Mail,
+  meeting: Users,
+  note: FileText,
+  stage_change: GitBranch,
+  system: Settings,
+}
+
+function ActivityIcon({ type }) {
+  const Icon = ACTIVITY_ICON[type] ?? CircleDot
+  return <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+}
 
 function Stat({ label, value, accent = 'text-slate-900' }) {
   return (
@@ -81,9 +96,7 @@ export default function Dashboard() {
           <ul className="space-y-2">
             {activities.map((a) => (
               <li key={a.id} className="flex items-start gap-2 text-sm">
-                <span>
-                  {{ call: '📞', email: '✉️', meeting: '🤝', note: '📝', stage_change: '🔁', system: '⚙️' }[a.type] ?? '•'}
-                </span>
+                <ActivityIcon type={a.type} />
                 <div>
                   <div>
                     {a.subject}

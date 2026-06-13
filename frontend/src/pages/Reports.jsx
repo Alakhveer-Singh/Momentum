@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Download } from 'lucide-react'
 import client from '../api/client'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -46,8 +47,8 @@ export default function Reports() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Reports & Analytics</h1>
-        <button onClick={exportPdf} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-          ⬇ Pipeline PDF
+        <button onClick={exportPdf} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+          <Download className="h-4 w-4" /> Pipeline PDF
         </button>
       </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Star, User } from 'lucide-react'
 import client from '../api/client'
 
 const inr = (n) => '₹' + Number(n).toLocaleString('en-IN')
@@ -73,15 +74,19 @@ export default function Pipeline() {
                     <div className="mt-2 flex items-center justify-between text-xs">
                       <span className="font-semibold text-indigo-600">{inr(lead.value)}</span>
                       <span
-                        className={`rounded-full px-2 py-0.5 font-medium ${
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${
                           lead.score >= 60 ? 'bg-emerald-100 text-emerald-700' : lead.score >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
                         }`}
                         title="Lead score"
                       >
-                        ★ {lead.score}
+                        <Star className="h-3 w-3 fill-current" /> {lead.score}
                       </span>
                     </div>
-                    {lead.owner && <div className="mt-1 text-xs text-slate-400">👤 {lead.owner.name}</div>}
+                    {lead.owner && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                        <User className="h-3 w-3" /> {lead.owner.name}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {stageLeads.length === 0 && (

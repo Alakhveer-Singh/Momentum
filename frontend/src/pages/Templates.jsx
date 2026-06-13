@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Pencil, Plus, Send, Trash2 } from 'lucide-react'
 import client from '../api/client'
 
 const empty = { name: '', subject: '', body: '' }
@@ -55,9 +56,9 @@ export default function Templates() {
             setEditing('new')
             setForm(empty)
           }}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
         >
-          + New Template
+          <Plus className="h-4 w-4" /> New Template
         </button>
       </div>
 
@@ -90,17 +91,22 @@ export default function Templates() {
                 <div className="text-sm text-slate-500">{t.subject}</div>
               </div>
               <div className="flex gap-1 text-sm">
-                <button onClick={() => openBulk(t)} className="rounded px-2 py-1 text-indigo-600 hover:bg-indigo-50" title="Bulk send">📤</button>
+                <button onClick={() => openBulk(t)} className="rounded p-1.5 text-indigo-600 hover:bg-indigo-50" title="Bulk send">
+                  <Send className="h-4 w-4" />
+                </button>
                 <button
                   onClick={() => {
                     setEditing(t)
                     setForm({ name: t.name, subject: t.subject, body: t.body })
                   }}
-                  className="rounded px-2 py-1 hover:bg-slate-100"
+                  className="rounded p-1.5 text-slate-500 hover:bg-slate-100"
+                  title="Edit"
                 >
-                  ✏️
+                  <Pencil className="h-4 w-4" />
                 </button>
-                <button onClick={() => remove(t)} className="rounded px-2 py-1 text-red-500 hover:bg-red-50">🗑</button>
+                <button onClick={() => remove(t)} className="rounded p-1.5 text-red-500 hover:bg-red-50" title="Delete">
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             </div>
             <pre className="mt-3 max-h-32 overflow-y-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{t.body}</pre>

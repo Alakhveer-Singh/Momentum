@@ -1,11 +1,33 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  ArrowLeft,
+  CheckSquare,
+  CircleDot,
+  FileText,
+  GitBranch,
+  Mail,
+  Pencil,
+  Phone,
+  Settings,
+  Star,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import client from '../api/client'
 import { useAuth } from '../context/AuthContext.jsx'
 import LeadFormModal from '../components/LeadFormModal.jsx'
 
 const inr = (n) => '₹' + Number(n).toLocaleString('en-IN')
-const icons = { call: '📞', email: '✉️', meeting: '🤝', note: '📝', stage_change: '🔁', task: '✅', system: '⚙️' }
+const ACTIVITY_ICON = {
+  call: Phone,
+  email: Mail,
+  meeting: Users,
+  note: FileText,
+  stage_change: GitBranch,
+  task: CheckSquare,
+  system: Settings,
+}
 
 export default function LeadDetail() {
   const { id } = useParams()
@@ -59,19 +81,21 @@ export default function LeadDetail() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to="/leads" className="text-sm text-indigo-600 hover:underline">← Back to leads</Link>
+          <Link to="/leads" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline">
+            <ArrowLeft className="h-4 w-4" /> Back to leads
+          </Link>
           <h1 className="text-2xl font-bold">{lead.full_name}</h1>
           <div className="text-slate-500">
             {lead.job_title} {lead.job_title && lead.company && '·'} {lead.company}
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setEditing(true)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-            ✏️ Edit
+          <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+            <Pencil className="h-4 w-4" /> Edit
           </button>
           {user.role !== 'rep' && (
-            <button onClick={deleteLead} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50">
-              🗑 Delete
+            <button onClick={deleteLead} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50">
+              <Trash2 className="h-4 w-4" /> Delete
             </button>
           )}
         </div>
@@ -84,11 +108,11 @@ export default function LeadDetail() {
             <div className="mb-3 flex items-center justify-between">
               <span className="font-semibold">Details</span>
               <span
-                className={`rounded-full px-2.5 py-1 text-sm font-bold ${
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-bold ${
                   lead.score >= 60 ? 'bg-emerald-100 text-emerald-700' : lead.score >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
                 }`}
               >
-                ★ {lead.score}/100
+                <Star className="h-3.5 w-3.5 fill-current" /> {lead.score}/100
               </span>
             </div>
             <dl className="space-y-2 text-sm">
@@ -176,10 +200,10 @@ export default function LeadDetail() {
                 onChange={(e) => setActivity((a) => ({ ...a, type: e.target.value }))}
                 className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
               >
-                <option value="call">📞 Call</option>
-                <option value="email">✉️ Email</option>
-                <option value="meeting">🤝 Meeting</option>
-                <option value="note">📝 Note</option>
+                <option value="call">Call</option>
+                <option value="email">Email</option>
+                <option value="meeting">Meeting</option>
+                <option value="note">Note</option>
               </select>
               <input
                 placeholder="Subject *"
@@ -198,10 +222,12 @@ export default function LeadDetail() {
 
             <h2 className="mb-3 font-semibold">Activity Timeline</h2>
             <ol className="relative space-y-4 border-l border-slate-200 pl-5">
-              {lead.activities.map((a) => (
+              {lead.activities.map((a) => {
+                const Icon = ACTIVITY_ICON[a.type] ?? CircleDot
+                return (
                 <li key={a.id} className="relative">
-                  <span className="absolute -left-[27px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-xs">
-                    {icons[a.type] ?? '•'}
+                  <span className="absolute -left-[31px] top-0 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white">
+                    <Icon className="h-3.5 w-3.5 text-slate-500" />
                   </span>
                   <div className="text-sm font-medium">{a.subject}</div>
                   {a.description && <div className="text-sm text-slate-500">{a.description}</div>}
@@ -209,7 +235,8 @@ export default function LeadDetail() {
                     {a.user?.name ?? 'System'} · {new Date(a.occurred_at).toLocaleString()}
                   </div>
                 </li>
-              ))}
+                )
+              })}
             </ol>
           </div>
         </div>

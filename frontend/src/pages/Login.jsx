@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Target } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Login() {
@@ -28,8 +29,10 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
         <div className="mb-6 text-center">
-          <div className="text-4xl">🎯</div>
-          <h1 className="mt-2 text-2xl font-bold">Quibus LMS</h1>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600">
+            <Target className="h-8 w-8 text-white" strokeWidth={2.2} />
+          </div>
+          <h1 className="mt-3 text-2xl font-bold">Quibus LMS</h1>
           <p className="text-sm text-slate-500">Sign in to your workspace</p>
         </div>
         <form onSubmit={submit} className="space-y-4">

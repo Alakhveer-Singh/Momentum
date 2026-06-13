@@ -2,15 +2,27 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import client from '../api/client'
+import {
+  Bell,
+  CheckSquare,
+  LayoutDashboard,
+  Mail,
+  Menu,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  Users as UsersIcon,
+  KanbanSquare,
+} from 'lucide-react'
 import { connectEcho, realtime } from '../echo'
 
 const nav = [
-  { to: '/', label: 'Dashboard', icon: '📊', end: true },
-  { to: '/pipeline', label: 'Pipeline', icon: '🧭' },
-  { to: '/leads', label: 'Leads', icon: '👥' },
-  { to: '/tasks', label: 'Tasks', icon: '✅' },
-  { to: '/templates', label: 'Email Templates', icon: '✉️' },
-  { to: '/reports', label: 'Reports', icon: '📈' },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/pipeline', label: 'Pipeline', icon: KanbanSquare },
+  { to: '/leads', label: 'Leads', icon: UsersIcon },
+  { to: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { to: '/templates', label: 'Email Templates', icon: Mail },
+  { to: '/reports', label: 'Reports', icon: TrendingUp },
 ]
 
 export default function Layout() {
@@ -72,19 +84,19 @@ export default function Layout() {
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="mb-8 flex items-center gap-2 px-2">
-          <span className="text-2xl">🎯</span>
+        <div className="mb-8 flex items-center gap-2.5 px-2">
+          <Target className="h-7 w-7 text-indigo-400" strokeWidth={2.2} />
           <span className="text-lg font-bold text-white">Quibus LMS</span>
         </div>
         <nav className="space-y-1">
           {nav.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className={linkClass} onClick={() => setOpen(false)}>
-              <span>{item.icon}</span> {item.label}
+              <item.icon className="h-5 w-5" /> {item.label}
             </NavLink>
           ))}
           {user.role === 'admin' && (
             <NavLink to="/users" className={linkClass} onClick={() => setOpen(false)}>
-              <span>🛡️</span> Team & Roles
+              <ShieldCheck className="h-5 w-5" /> Team & Roles
             </NavLink>
           )}
         </nav>
@@ -118,7 +130,7 @@ export default function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
           <button className="rounded p-2 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)}>
-            ☰
+            <Menu className="h-5 w-5" />
           </button>
           <div className="hidden text-sm text-slate-500 lg:block">Lead Management & CRM</div>
           <div className="relative">
@@ -127,7 +139,7 @@ export default function Layout() {
               className="relative rounded-full p-2 hover:bg-slate-100"
               title="Notifications"
             >
-              🔔
+              <Bell className="h-5 w-5 text-slate-600" />
               {unread > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
                   {unread}
