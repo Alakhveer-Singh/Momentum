@@ -156,6 +156,7 @@ def leads(request):
         "search": search, "source": source, "tab": tab, "sources": SOURCES,
         "users": User.objects.filter(is_active=True) if user.role != "rep" else [],
         "can_assign": user.role != "rep",
+        "can_delete": user.is_manager_or_admin,
     }
     return render(request, "leads.html", ctx)
 

@@ -109,7 +109,10 @@
     <div style="min-width:0;flex:1;">
       <h2 id="panelTitle" style="font-weight:700;font-size:18px;line-height:1.35;word-break:break-word;color:#0f172a;margin:0;"></h2>
     </div>
-    <button onclick="closeLeadPanel()" style="flex-shrink:0;background:none;border:none;cursor:pointer;color:#94a3b8;padding:2px;margin-top:3px;" onmouseover="this.style.color='#475569'" onmouseout="this.style.color='#94a3b8'"><i data-lucide="x" class="h-5 w-5"></i></button>
+    <div style="flex-shrink:0;display:flex;gap:4px;margin-top:2px;">
+      {% if can_delete %}<button id="panelDeleteBtn" style="background:none;border:none;cursor:pointer;color:#cbd5e1;padding:4px;border-radius:6px;" onmouseover="this.style.color='#dc2626';this.style.background='#fef2f2'" onmouseout="this.style.color='#cbd5e1';this.style.background='none'" title="Delete lead"><i data-lucide="trash-2" class="h-5 w-5"></i></button>{% endif %}
+      <button onclick="closeLeadPanel()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;border-radius:6px;" onmouseover="this.style.color='#475569';this.style.background='#f1f5f9'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
   </div>
   <div id="leadPanelContent" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:12px;"></div>
 </div>
@@ -169,7 +172,9 @@
   const ACT_COLOR = {call:'#3b82f6',email:'#8b5cf6',meeting:'#059669',note:'#f59e0b',stage_change:'#6366f1',task:'#64748b'};
   const ACT_LABEL = {call:'Call',email:'Email',meeting:'Meeting',note:'Note',stage_change:'Stage',task:'Task'};
 
+  let panelLeadId = null;
   async function openLeadPanel(id) {
+    panelLeadId = id;
     // show loading state
     document.getElementById("leadPanel").style.transform = "translateX(0)";
     document.getElementById("panelOverlay").classList.remove("hidden");
@@ -297,6 +302,16 @@
     document.getElementById("panelOverlay").classList.add("hidden");
     document.getElementById("panelSubtitle")?.remove();
   }
+
+  async function deleteLeadFromPanel() {
+    if (panelLeadId == null) return;
+    const name = document.getElementById("panelTitle").textContent;
+    if (!confirm(`Delete lead "${name}"? This cannot be undone.`)) return;
+    await api(`leads/${panelLeadId}`, { method: "DELETE" });
+    document.querySelector(`.lead-row[data-id="${panelLeadId}"]`)?.remove();
+    closeLeadPanel();
+  }
+  document.getElementById("panelDeleteBtn")?.addEventListener("click", deleteLeadFromPanel);
 
   async function changeSource(id, newSource) {
     await api(`leads/${id}`, { method: "PUT", body: { source: newSource } });
