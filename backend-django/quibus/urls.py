@@ -1,8 +1,9 @@
 from django.contrib import admin
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from crm import views
+from crm import views, web_views
 
 router = DefaultRouter(trailing_slash=False)
 router.register("leads", views.LeadViewSet, basename="lead")
@@ -46,7 +47,25 @@ api = [
     *router.urls,
 ]
 
+web = [
+    path("", web_views.dashboard),
+    path("login", web_views.login_page),
+    path("logout", web_views.logout_view),
+    path("pipeline", web_views.pipeline),
+    path("leads", web_views.leads),
+    path("leads/<int:pk>", web_views.lead_detail),
+    path("tasks", web_views.tasks),
+    path("templates", web_views.templates_page),
+    path("reports", web_views.reports),
+    path("users", web_views.users_page),
+    path("funnel", web_views.funnel),
+    path("profile", web_views.profile),
+]
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(api)),
+    *web,
 ]
+
+urlpatterns += staticfiles_urlpatterns()

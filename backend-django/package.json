@@ -1,0 +1,12 @@
+{
+  "name": "quibus-lms-django-ui",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i static/css/input.css -o static/css/app.css --minify",
+    "watch:css": "tailwindcss -i static/css/input.css -o static/css/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.0",
+    "tailwindcss": "^4.3.0"
+  }
+}

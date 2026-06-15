@@ -3,10 +3,6 @@
 from datetime import timedelta
 from pathlib import Path
 
-import pymysql
-
-pymysql.install_as_MySQLdb()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "django-insecure-quibus-lms-dev-key-change-in-production"
@@ -43,7 +39,7 @@ ROOT_URLCONF = "quibus.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -111,5 +107,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
+LOGIN_URL = "/login"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

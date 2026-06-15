@@ -1,0 +1,65 @@
+<div id="leadModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onclick="event.stopPropagation()">
+    <h2 id="leadModalTitle" class="mb-5 text-lg font-bold">New Lead</h2>
+    <form id="leadForm" class="space-y-4">
+      <input type="hidden" id="lm_id" />
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lm-label">First Name <span class="text-red-500">*</span></label><input id="lm_first_name" required class="lm-inp" placeholder="First name" /></div>
+        <div><label class="lm-label">Last Name <span class="text-red-500">*</span></label><input id="lm_last_name" required class="lm-inp" placeholder="Last name" /></div>
+      </div>
+      <div>
+        <label class="lm-label">Mobile No. <span class="text-red-500">*</span></label>
+        <input id="lm_phone" required type="tel" class="lm-inp" placeholder="+91 9876543210" />
+        <div id="lm_extra_phones" class="space-y-2"></div>
+        <button type="button" onclick="lmAddPhone()" class="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"><i data-lucide="plus" class="h-3 w-3"></i> Add another number</button>
+      </div>
+      <div>
+        <label class="lm-label">WhatsApp No. <span class="text-red-500">*</span></label>
+        <label class="mb-2 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" id="lm_wa_same" class="rounded" /> Same as mobile number</label>
+        <input id="lm_whatsapp" type="tel" class="lm-inp" placeholder="+91 9876543210" />
+      </div>
+      <div><label class="lm-label">Email Id</label><input id="lm_email" type="email" class="lm-inp" placeholder="email@example.com" /></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lm-label">City <span class="text-red-500">*</span></label><input id="lm_city" required class="lm-inp" placeholder="e.g. Mumbai" /></div>
+        <div><label class="lm-label">Location</label><input id="lm_location" class="lm-inp" placeholder="Area / Locality" /></div>
+      </div>
+      <div>
+        <label class="lm-label">Current Profile <span class="text-red-500">*</span></label>
+        <select id="lm_current_profile" required class="lm-inp"><option value="">Select profile…</option>
+          <option>Student</option><option>Fresher</option><option>Working Professional</option><option>Business Owner</option><option>Home Maker</option></select>
+      </div>
+      <div>
+        <label class="lm-label">Highest Education</label>
+        <select id="lm_highest_education" class="lm-inp"><option value="">Select education…</option>
+          <option>XII</option><option>UnderGraduate</option><option>Graduate</option><option>Post Graduate</option><option>PHD</option></select>
+      </div>
+      <div><label class="lm-label">Notes</label><textarea id="lm_notes" rows="3" class="lm-inp" placeholder="Any additional notes…"></textarea></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="lm-label">Source <span class="text-red-500">*</span></label>
+          <select id="lm_source" required class="lm-inp"><option value="">Select source…</option>
+            <option value="web_form">Web form</option><option value="referral">Referral</option>
+            <option value="google_ads">Google ads</option><option value="facebook_ads">Facebook ads</option>
+            <option value="cold_call">Cold call</option></select>
+        </div>
+        <div>
+          <label class="lm-label">Stage <span class="text-red-500">*</span></label>
+          <select id="lm_stage_id" required class="lm-inp"><option value="">Select stage…</option>
+            {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      {% if can_assign %}
+      <div>
+        <label class="lm-label">Owner</label>
+        <select id="lm_owner_id" class="lm-inp"><option value="">Unassigned</option>
+          {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
+      </div>
+      {% endif %}
+      <div id="lm_error" class="hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" onclick="closeLeadModal()" class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+        <button id="lm_submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">Save Lead</button>
+      </div>
+    </form>
+  </div>
+</div>

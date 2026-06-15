@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load lms_extras static %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <a href="/leads" class="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline"><i data-lucide="arrow-left" class="h-4 w-4"></i> Back to leads</a>
+      <h1 class="text-2xl font-bold">{{ lead.full_name }}</h1>
+      <div class="text-slate-500">{{ lead.job_title }} {% if lead.job_title and lead.company %}·{% endif %} {{ lead.company }}</div>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="editLead()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"><i data-lucide="pencil" class="h-4 w-4"></i> Edit</button>
+      {% if can_delete %}<button onclick="deleteLead()" class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50"><i data-lucide="trash-2" class="h-4 w-4"></i> Delete</button>{% endif %}
+    </div>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-3">
+    <div class="space-y-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-4">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="font-semibold">Details</span>
+          <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-bold {% if lead.score >= 60 %}bg-emerald-100 text-emerald-700{% elif lead.score >= 30 %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-500{% endif %}"><i data-lucide="star" class="h-3.5 w-3.5"></i> {{ lead.score }}/100</span>
+        </div>
+        <dl class="space-y-2 text-sm">
+          <div class="flex justify-between gap-2"><dt class="text-slate-400">Email</dt><dd class="text-right font-medium">{{ lead.email|default:"—" }}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-slate-400">Phone</dt><dd class="text-right font-medium">{{ lead.phone|default:"—" }}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-slate-400">Source</dt><dd class="text-right font-medium">{{ lead.source|pretty }}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-slate-400">Owner</dt><dd class="text-right font-medium">{{ lead.owner.name|default:"—" }}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-slate-400">Deal value</dt><dd class="text-right font-medium">{{ lead.value|inr }}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-slate-400">Created</dt><dd class="text-right font-medium">{{ lead.created_at|date:"M d, Y" }}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-slate-400">Last activity</dt><dd class="text-right font-medium">{% if lead.last_activity_at %}{{ lead.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</dd></div>
+          {% for k, v in custom_fields %}<div class="flex justify-between gap-2"><dt class="capitalize text-slate-400">{{ k|pretty }}</dt><dd class="text-right font-medium">{{ v }}</dd></div>{% endfor %}
+        </dl>
+        {% if lead.notes %}<p class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{{ lead.notes }}</p>{% endif %}
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4">
+        <div class="mb-2 font-semibold">Stage</div>
+        <div class="flex flex-wrap gap-1.5">
+          {% for s in stages %}
+          <button onclick="changeStage({{ s.id }})" class="rounded-full px-3 py-1 text-xs font-medium transition {% if lead.stage_id == s.id %}text-white{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}" {% if lead.stage_id == s.id %}style="background: {{ s.color }}"{% endif %}>{{ s.name }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4">
+        <div class="mb-2 font-semibold">Send Email Template</div>
+        <div class="flex gap-2">
+          <select id="templateSel" class="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"><option value="">Choose template…</option>
+            {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
+          <button onclick="sendTemplate()" {% if not lead.email %}disabled{% endif %} class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white disabled:opacity-40">Send</button>
+        </div>
+        {% if not lead.email %}<div class="mt-1 text-xs text-amber-600">Lead has no email address.</div>{% endif %}
+      </div>
+
+      {% if tasks %}
+      <div class="rounded-xl border border-slate-200 bg-white p-4">
+        <div class="mb-2 font-semibold">Tasks</div>
+        <ul class="space-y-1 text-sm">
+          {% for t in tasks %}<li class="flex justify-between"><span class="{% if t.status == 'completed' %}text-slate-400 line-through{% endif %}">{{ t.title }}</span><span class="text-xs text-slate-400">{% if t.due_at %}{{ t.due_at|date:"M d, Y" }}{% endif %}</span></li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="lg:col-span-2">
+      <div class="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 class="mb-3 font-semibold">Log Activity</h2>
+        <form id="actForm" class="mb-5 flex flex-wrap gap-2">
+          <select id="act_type" class="rounded-lg border border-slate-300 px-2 py-2 text-sm"><option value="call">Call</option><option value="email">Email</option><option value="meeting">Meeting</option><option value="note">Note</option></select>
+          <input id="act_subject" placeholder="Subject *" required class="min-w-40 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <input id="act_desc" placeholder="Details (optional)" class="min-w-40 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Log</button>
+        </form>
+
+        <h2 class="mb-3 font-semibold">Activity Timeline</h2>
+        <ol class="relative space-y-4 border-l border-slate-200 pl-5">
+          {% for a in activities %}
+          <li class="relative">
+            <span class="absolute -left-[31px] top-0 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white"><i data-lucide="{{ a.type|activity_icon }}" class="h-3.5 w-3.5 text-slate-500"></i></span>
+            <div class="text-sm font-medium">{{ a.subject }}</div>
+            {% if a.description %}<div class="text-sm text-slate-500">{{ a.description }}</div>{% endif %}
+            <div class="text-xs text-slate-400">{{ a.user.name|default:"System" }} · {{ a.occurred_at|date:"M d, Y H:i" }}</div>
+          </li>
+          {% empty %}<li class="text-sm text-slate-400">No activity yet.</li>{% endfor %}
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "partials/lead_modal.html" %}
+{{ lead_json|json_script:"leadData" }}
+{% endblock %}
+{% block page_js %}
+<script src="{% static 'js/lead_modal.js' %}"></script>
+<script>
+  const LEAD_ID = {{ lead.id }};
+  function editLead() { openLeadModal(JSON.parse(document.getElementById("leadData").textContent)); }
+  async function changeStage(id) { await api(`leads/${LEAD_ID}`, { method: "PUT", body: { stage_id: id } }); location.reload(); }
+  async function deleteLead() {
+    if (!confirm("Delete lead {{ lead.full_name|escapejs }}? This cannot be undone.")) return;
+    await api(`leads/${LEAD_ID}`, { method: "DELETE" }); location.href = "/leads";
+  }
+  async function sendTemplate() {
+    const id = document.getElementById("templateSel").value; if (!id) return;
+    const res = await api("emails/send", { method: "POST", body: { template_id: Number(id), lead_ids: [LEAD_ID] } });
+    alert(res.message); location.reload();
+  }
+  document.getElementById("actForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const subject = document.getElementById("act_subject").value; if (!subject) return;
+    await api("activities", { method: "POST", body: {
+      type: document.getElementById("act_type").value, subject,
+      description: document.getElementById("act_desc").value, lead_id: LEAD_ID } });
+    location.reload();
+  });
+</script>
+{% endblock %}

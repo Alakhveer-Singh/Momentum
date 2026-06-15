@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-bold">Email Templates</h1>
+    <button onclick="openTpl()" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"><i data-lucide="plus" class="h-4 w-4"></i> New Template</button>
+  </div>
+
+  {% verbatim %}
+  <p class="text-sm text-slate-500">Placeholders:
+    <code class="rounded bg-slate-200 px-1">{{first_name}}</code>
+    <code class="rounded bg-slate-200 px-1">{{last_name}}</code>
+    <code class="rounded bg-slate-200 px-1">{{full_name}}</code>
+    <code class="rounded bg-slate-200 px-1">{{company}}</code>
+    <code class="rounded bg-slate-200 px-1">{{email}}</code>
+  </p>
+  {% endverbatim %}
+
+  <form id="tplForm" class="hidden space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+    <input type="hidden" id="tpl_id" />
+    <input id="tpl_name" required placeholder="Template name *" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+    <input id="tpl_subject" required placeholder="Email subject *" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+    <textarea id="tpl_body" required rows="6" placeholder="Email body *" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+    <div class="flex justify-end gap-2">
+      <button type="button" onclick="document.getElementById('tplForm').classList.add('hidden')" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
+      <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Save</button>
+    </div>
+  </form>
+
+  <div class="grid gap-4 md:grid-cols-2">
+    {% for t in templates %}
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <div class="flex items-start justify-between">
+        <div><div class="font-semibold">{{ t.name }}</div><div class="text-sm text-slate-500">{{ t.subject }}</div></div>
+        <div class="flex gap-1 text-sm">
+          <button onclick="openBulk({{ t.id }}, '{{ t.name|escapejs }}')" class="rounded p-1.5 text-indigo-600 hover:bg-indigo-50" title="Bulk send"><i data-lucide="send" class="h-4 w-4"></i></button>
+          <button onclick="openTpl({{ t.id }})" class="rounded p-1.5 text-slate-500 hover:bg-slate-100 tpl-edit" data-id="{{ t.id }}" data-name="{{ t.name }}" data-subject="{{ t.subject }}" title="Edit"><i data-lucide="pencil" class="h-4 w-4"></i></button>
+          <button onclick="delTpl({{ t.id }}, '{{ t.name|escapejs }}')" class="rounded p-1.5 text-red-500 hover:bg-red-50" title="Delete"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+        </div>
+      </div>
+      <pre class="tpl-body mt-3 max-h-32 overflow-y-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-600" data-id="{{ t.id }}">{{ t.body }}</pre>
+    </div>
+    {% empty %}
+    <div class="text-sm text-slate-400">No templates yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Bulk modal -->
+<div id="bulkModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6" onclick="event.stopPropagation()">
+    <h2 id="bulkTitle" class="mb-1 text-lg font-bold">Bulk send</h2>
+    <p class="mb-3 text-sm text-slate-500"><span id="bulkCount">0</span> chosen</p>
+    <label class="mb-2 flex items-center gap-2 text-sm font-medium"><input type="checkbox" id="bulkAll" class="accent-indigo-600" /> Select all</label>
+    <div id="bulkList" class="max-h-64 space-y-1 overflow-y-auto"></div>
+    <div class="mt-4 flex justify-end gap-2">
+      <button onclick="closeBulk()" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
+      <button id="bulkSend" onclick="sendBulk()" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Send</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block page_js %}
+<script>
+  const $ = (id) => document.getElementById(id);
+  function openTpl(id) {
+    $("tplForm").classList.remove("hidden");
+    if (id) {
+      const btn = document.querySelector(`.tpl-edit[data-id="${id}"]`);
+      $("tpl_id").value = id;
+      $("tpl_name").value = btn.dataset.name;
+      $("tpl_subject").value = btn.dataset.subject;
+      $("tpl_body").value = document.querySelector(`.tpl-body[data-id="${id}"]`).textContent;
+    } else { $("tpl_id").value = ""; $("tpl_name").value = ""; $("tpl_subject").value = ""; $("tpl_body").value = ""; }
+  }
+  $("tplForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = { name: $("tpl_name").value, subject: $("tpl_subject").value, body: $("tpl_body").value };
+    const id = $("tpl_id").value;
+    if (id) await api(`email-templates/${id}`, { method: "PUT", body });
+    else await api("email-templates", { method: "POST", body });
+    location.reload();
+  });
+  async function delTpl(id, name) {
+    if (!confirm(`Delete template "${name}"?`)) return;
+    await api(`email-templates/${id}`, { method: "DELETE" }); location.reload();
+  }
+
+  // Bulk send
+  let bulkId = null, bulkLeads = [], chosen = new Set();
+  async function openBulk(id, name) {
+    bulkId = id; chosen = new Set();
+    $("bulkTitle").textContent = "Bulk send: " + name;
+    const r = await api("leads?all=1");
+    bulkLeads = r.data.filter((l) => l.email);
+    $("bulkList").innerHTML = bulkLeads.map((l) =>
+      `<label class="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-slate-50">
+        <input type="checkbox" class="accent-indigo-600 bulk-cb" value="${l.id}" />
+        ${l.full_name} <span class="text-xs text-slate-400">${l.email}</span></label>`).join("");
+    document.querySelectorAll(".bulk-cb").forEach((cb) => cb.addEventListener("change", () => {
+      cb.checked ? chosen.add(Number(cb.value)) : chosen.delete(Number(cb.value)); updateBulk();
+    }));
+    $("bulkAll").checked = false;
+    updateBulk();
+    $("bulkModal").classList.remove("hidden"); $("bulkModal").classList.add("flex");
+  }
+  $("bulkAll").addEventListener("change", (e) => {
+    chosen = e.target.checked ? new Set(bulkLeads.map((l) => l.id)) : new Set();
+    document.querySelectorAll(".bulk-cb").forEach((cb) => (cb.checked = e.target.checked));
+    updateBulk();
+  });
+  function updateBulk() {
+    $("bulkCount").textContent = chosen.size;
+    $("bulkSend").textContent = "Send to " + chosen.size;
+    $("bulkSend").disabled = chosen.size === 0;
+  }
+  function closeBulk() { $("bulkModal").classList.add("hidden"); $("bulkModal").classList.remove("flex"); }
+  $("bulkModal").addEventListener("click", (e) => { if (e.target.id === "bulkModal") closeBulk(); });
+  async function sendBulk() {
+    const res = await api("emails/send", { method: "POST", body: { template_id: bulkId, lead_ids: [...chosen] } });
+    alert(res.message); closeBulk();
+  }
+</script>
+{% endblock %}

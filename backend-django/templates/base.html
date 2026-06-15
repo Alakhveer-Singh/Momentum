@@ -1,0 +1,87 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ csrf_token }}" />
+  <meta name="ws-token" content="{{ ws_token }}" />
+  <meta name="user-role" content="{{ me.role }}" />
+  <meta name="user-id" content="{{ me.id }}" />
+  <title>Quibus LMS</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transform bg-slate-900 p-4 transition-transform lg:static lg:translate-x-0">
+    <div class="mb-8 flex items-center gap-2.5 px-2">
+      <i data-lucide="target" class="h-7 w-7 text-indigo-400"></i>
+      <span class="text-lg font-bold text-white">Quibus LMS</span>
+    </div>
+    <nav class="space-y-1">
+      {% with cls="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition" on="bg-indigo-600 text-white" off="text-slate-300 hover:bg-slate-700 hover:text-white" %}
+      <a href="/" class="{{ cls }} {% if active == 'dashboard' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="layout-dashboard" class="h-5 w-5"></i> Dashboard</a>
+      <a href="/pipeline" class="{{ cls }} {% if active == 'pipeline' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="kanban-square" class="h-5 w-5"></i> Pipeline</a>
+      <a href="/leads" class="{{ cls }} {% if active == 'leads' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="users" class="h-5 w-5"></i> Leads</a>
+      <a href="/tasks" class="{{ cls }} {% if active == 'tasks' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="check-square" class="h-5 w-5"></i> Follow-ups</a>
+      <a href="/templates" class="{{ cls }} {% if active == 'templates' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="mail" class="h-5 w-5"></i> Email Templates</a>
+      <a href="/reports" class="{{ cls }} {% if active == 'reports' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="trending-up" class="h-5 w-5"></i> Reports</a>
+      <a href="/funnel" class="{{ cls }} {% if active == 'funnel' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="filter" class="h-5 w-5"></i> Lead Funnel</a>
+      {% if me.role == 'admin' %}
+      <a href="/users" class="{{ cls }} {% if active == 'users' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="shield-check" class="h-5 w-5"></i> Team &amp; Roles</a>
+      {% endif %}
+      {% endwith %}
+    </nav>
+    <div class="absolute bottom-4 left-4 right-4">
+      <div class="rounded-lg bg-slate-800 p-3 text-sm">
+        <div class="font-semibold text-white">{{ me.name }}</div>
+        <div class="capitalize text-slate-400">{{ me.role }}</div>
+        <div class="mt-2 flex gap-2">
+          <a href="/profile" class="rounded bg-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-600">Profile</a>
+          <a href="/logout" class="rounded bg-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-600">Sign out</a>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div id="overlay" class="fixed inset-0 z-30 hidden bg-black/40 lg:hidden"></div>
+
+  <!-- Main -->
+  <div class="flex min-w-0 flex-1 flex-col">
+    <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+      <button id="menuBtn" class="rounded p-2 hover:bg-slate-100 lg:hidden"><i data-lucide="menu" class="h-5 w-5"></i></button>
+      <div class="hidden text-sm text-slate-500 lg:block">Lead Management &amp; CRM</div>
+      <div class="relative">
+        <button id="bellBtn" class="relative rounded-full p-2 hover:bg-slate-100" title="Notifications">
+          <i data-lucide="bell" class="h-5 w-5 text-slate-600"></i>
+          <span id="unreadBadge" class="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white {% if unread_count == 0 %}hidden{% endif %}">{{ unread_count }}</span>
+        </button>
+        <div id="notifPanel" class="absolute right-0 mt-2 hidden w-80 rounded-xl border border-slate-200 bg-white shadow-xl">
+          <div class="flex items-center justify-between border-b border-slate-100 px-4 py-2">
+            <span class="text-sm font-semibold">Notifications</span>
+            <button id="markRead" class="text-xs text-indigo-600 hover:underline">Mark all read</button>
+          </div>
+          <div id="notifList" class="max-h-80 overflow-y-auto">
+            {% for n in notifications %}
+            <div class="border-b border-slate-50 px-4 py-2 text-sm {% if not n.read_at %}bg-indigo-50{% endif %}">
+              <div>{{ n.data.message }}</div>
+              <div class="text-xs text-slate-400">{{ n.created_at }}</div>
+            </div>
+            {% empty %}
+            <div class="p-4 text-sm text-slate-400">No notifications yet.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="flex-1 p-4 lg:p-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<script src="{% static 'js/app.js' %}"></script>
+{% block page_js %}{% endblock %}
+<script>lucide.createIcons();</script>
+</body>
+</html>

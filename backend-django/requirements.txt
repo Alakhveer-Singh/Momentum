@@ -22,7 +22,7 @@ pillow==12.2.0
 py-ubjson==0.16.1
 pycparser==3.0
 PyJWT==2.13.0
-PyMySQL==1.2.0
+mysqlclient==2.2.8
 pyOpenSSL==26.3.0
 reportlab==4.5.1
 service-identity==26.1.0

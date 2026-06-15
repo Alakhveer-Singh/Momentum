@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% load lms_extras static %}
+{% block content %}
+<div class="space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-xl font-bold">Leads</h1>
+    <div class="flex flex-wrap gap-2">
+      <button onclick="download('exports/leads.csv','leads.csv')" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+        <i data-lucide="download" class="h-4 w-4"></i> Export CSV
+      </button>
+      <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+        <i data-lucide="upload" class="h-4 w-4"></i> <span id="importLabel">Import CSV</span>
+        <input id="importFile" type="file" accept=".csv" class="hidden" />
+      </label>
+      <button onclick="openLeadModal()" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+        <i data-lucide="plus" class="h-4 w-4"></i> New Lead
+      </button>
+    </div>
+  </div>
+
+  <form method="get" id="filterForm" class="flex flex-wrap gap-2">
+    <input type="hidden" name="tab" value="{{ tab }}" />
+    <div class="relative">
+      <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+      <input name="search" value="{{ search }}" placeholder="Search name, email, company…"
+             class="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none" />
+    </div>
+    <select name="source" onchange="this.form.submit()" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+      <option value="">All sources</option>
+      {% for s in sources %}<option value="{{ s }}" {% if s == source %}selected{% endif %}>{{ s|pretty }}</option>{% endfor %}
+    </select>
+  </form>
+
+  <!-- Stage tabs -->
+  <div class="flex items-center gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
+    {% with base="?search="|add:search|add:"&source="|add:source %}
+    <a href="{{ base }}&tab=" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if not tab %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">All</a>
+    <span class="mx-2 h-5 w-px shrink-0 bg-slate-300"></span>
+    <a href="{{ base }}&tab=unread" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == 'unread' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">Unread <span class="text-xs text-slate-400">{{ unread_count }}</span></a>
+    {% for s in stages %}
+    <i data-lucide="chevron-right" class="mx-0.5 h-3 w-3 shrink-0 text-slate-400"></i>
+    <a href="{{ base }}&tab={{ s.id }}" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == s.id|stringformat:'s' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">{{ s.name }} <span class="text-xs text-slate-400">{{ stage_counts|get:s.id }}</span></a>
+    {% endfor %}
+    {% endwith %}
+  </div>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+        <tr>
+          <th class="px-4 py-3">Name</th>
+          <th class="px-4 py-3">Phone</th>
+          <th class="px-4 py-3">Source</th>
+          <th class="px-4 py-3">Stage</th>
+          <th class="px-4 py-3 text-right">Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in page_obj %}
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openLeadPanel({{ lead.id }})">
+          <td class="px-4 py-3">
+            <div class="font-medium text-indigo-600 hover:underline">{{ lead.full_name }}</div>
+            <div class="text-xs text-slate-400">{{ lead.custom_fields.profile|default:"—" }}</div>
+          </td>
+          <td class="px-4 py-3">{{ lead.phone|default:"—" }}</td>
+          <td class="px-4 py-3">
+            <span class="inline-block rounded px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700" onclick="event.stopPropagation(); editSource({{ lead.id }}, '{{ lead.source|escapejs }}', this)">
+              {{ lead.source|pretty }}
+            </span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium text-white cursor-pointer" style="background: {{ lead.stage.color }}" onclick="event.stopPropagation(); editStage({{ lead.id }}, {{ lead.stage.id }}, this)">
+              {{ lead.stage.name }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right font-semibold">{{ lead.score }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">No leads found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="flex items-center justify-between text-sm">
+    <span class="text-slate-500">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+    <div class="flex gap-2">
+      {% with q="&search="|add:search|add:"&source="|add:source|add:"&tab="|add:tab %}
+      <a href="?page={{ page_obj.previous_page_number }}{{ q }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 {% if not page_obj.has_previous %}pointer-events-none opacity-40{% endif %}">Previous</a>
+      <a href="?page={{ page_obj.next_page_number }}{{ q }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 {% if not page_obj.has_next %}pointer-events-none opacity-40{% endif %}">Next</a>
+      {% endwith %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% include "partials/lead_modal.html" %}
+
+<!-- Lead detail side panel -->
+<div id="leadPanel" class="fixed right-0 top-0 h-screen w-96 bg-white border-l border-slate-200 shadow-lg transform translate-x-full transition-transform z-40 overflow-y-auto">
+  <div id="leadPanelContent" class="p-6"></div>
+</div>
+<div id="panelOverlay" class="fixed inset-0 bg-black/40 hidden z-30" onclick="closeLeadPanel()"></div>
+{% endblock %}
+{% block page_js %}
+<script src="{% static 'js/lead_modal.js' %}"></script>
+<script>
+  const sources = [{% for s in sources %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+  const stages = [{% for s in stages %}{"id":{{ s.id }},"name":"{{ s.name|escapejs }}","color":"{{ s.color }}"}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+  // Hover preview + side panel
+  let hoverTimer = null;
+  async function openLeadPanel(id) {
+    const res = await api(`leads/${id}`);
+    const lead = res;
+    const html = `
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-bold">{{ lead.full_name }}</h2>
+          <p class="text-sm text-slate-500">{{ lead.job_title|default:'' }} {% if lead.job_title and lead.company %}·{% endif %} {{ lead.company|default:'' }}</p>
+        </div>
+        <button onclick="closeLeadPanel()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="h-5 w-5"></i></button>
+      </div>
+      <div class="space-y-4">
+        <div class="rounded-lg border border-slate-200 p-4">
+          <h3 class="font-semibold mb-3">Details</h3>
+          <dl class="space-y-2 text-sm">
+            <div class="flex justify-between"><dt class="text-slate-400">Email</dt><dd class="font-medium">${lead.email || '—'}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-400">Phone</dt><dd class="font-medium">${lead.phone || '—'}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-400">Score</dt><dd class="font-medium">${lead.score}/100</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-400">Created</dt><dd class="font-medium">${new Date(lead.created_at).toLocaleDateString()}</dd></div>
+          </dl>
+        </div>
+        <div class="rounded-lg border border-slate-200 p-4">
+          <h3 class="font-semibold mb-3">Activities (last 5)</h3>
+          <div class="space-y-2 text-sm">
+            ${lead.activities.slice(0, 5).map(a =>
+              \`<div class="text-xs text-slate-600">\${a.subject}<br/><span class="text-slate-400">\${a.user?.name || 'System'} · \${new Date(a.occurred_at).toLocaleString()}</span></div>\`
+            ).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("leadPanelContent").innerHTML = html;
+    document.getElementById("leadPanel").classList.remove("translate-x-full");
+    document.getElementById("panelOverlay").classList.remove("hidden");
+    lucide.createIcons();
+  }
+
+  function closeLeadPanel() {
+    document.getElementById("leadPanel").classList.add("translate-x-full");
+    document.getElementById("panelOverlay").classList.add("hidden");
+  }
+
+  // Inline edit Source
+  async function editSource(id, current, el) {
+    const sel = prompt("New source: " + sources.join(", "));
+    if (!sel || !sources.includes(sel)) return;
+    await api(`leads/${id}`, { method: "PUT", body: { source: sel } });
+    location.reload();
+  }
+
+  // Inline edit Stage (auto-logged to activities)
+  async function editStage(id, currentStageId, el) {
+    const stageNames = stages.map(s => s.name).join(", ");
+    const newStageName = prompt("New stage: " + stageNames);
+    if (!newStageName) return;
+    const stage = stages.find(s => s.name === newStageName);
+    if (!stage) { alert("Invalid stage"); return; }
+    // PUT to update stage (auto-logs in web_views.py)
+    await api(`leads/${id}`, { method: "PUT", body: { stage_id: stage.id } });
+    location.reload();
+  }
+
+  // CSV import
+  document.getElementById("importFile")?.addEventListener("change", async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    document.getElementById("importLabel").textContent = "Importing…";
+    try {
+      const text = await file.text();
+      const [header, ...rows] = text.trim().split(/\r?\n/);
+      const cols = header.split(",").map((c) => c.trim().toLowerCase().replace(/\s+/g, "_"));
+      const leads = rows.map((row) => {
+        const vals = row.split(",");
+        return Object.fromEntries(cols.map((c, i) => [c, vals[i]?.trim()]).filter(([, v]) => v));
+      });
+      const res = await api("leads-import", { method: "POST", body: { leads } });
+      alert(res.message); location.reload();
+    } catch (err) { alert(err.data?.message || "Import failed."); }
+    finally { document.getElementById("importLabel").textContent = "Import CSV"; e.target.value = ""; }
+  });
+
+  lucide.createIcons();
+</script>
+{% endblock %}
