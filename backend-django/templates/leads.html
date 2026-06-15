@@ -113,70 +113,85 @@
   const sources = [{% for s in sources %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}];
   const stages = [{% for s in stages %}{"id":{{ s.id }},"name":"{{ s.name|escapejs }}","color":"{{ s.color }}"}{% if not forloop.last %},{% endif %}{% endfor %}];
 
-  // Hover preview (0.5s delay) + Click opens side panel
-  let hoverTimer = null;
+  function pretty(s) { return (s||'').replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()); }
+  function scoreColor(n) { return n>=70?'#16a34a':n>=40?'#d97706':'#dc2626'; }
+
+  // Hover preview (0.5s delay, follows mouse) + Click opens side panel
+  let hoverTimer = null, curX = 0, curY = 0;
   document.querySelectorAll(".lead-row").forEach(row => {
+    row.addEventListener("mousemove", e => { curX = e.clientX; curY = e.clientY; });
     row.addEventListener("mouseenter", () => {
-      hoverTimer = setTimeout(() => {
-        const id = row.dataset.id;
-        loadLeadPreview(id);
-      }, 500);
+      hoverTimer = setTimeout(() => loadLeadPreview(row.dataset.id, curX, curY), 500);
     });
     row.addEventListener("mouseleave", () => {
       clearTimeout(hoverTimer);
+      document.getElementById("lead-hover-card")?.remove();
     });
     row.addEventListener("click", () => {
       clearTimeout(hoverTimer);
-      const id = row.dataset.id;
-      openLeadPanel(id);
+      document.getElementById("lead-hover-card")?.remove();
+      openLeadPanel(row.dataset.id);
     });
   });
 
-  async function loadLeadPreview(id) {
+  async function loadLeadPreview(id, mx, my) {
     document.getElementById("lead-hover-card")?.remove();
     const lead = await api(`leads/${id}`);
     const card = document.createElement("div");
     card.id = "lead-hover-card";
-    card.style.cssText = "position:fixed;bottom:24px;right:24px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,.15);padding:16px;width:280px;z-index:9999;font-size:13px;";
+    const W = 260, GAP = 14;
+    let left = mx + GAP;
+    let top = my - 10;
+    if (left + W > window.innerWidth - 8) left = mx - W - GAP;
+    if (top + 150 > window.innerHeight - 8) top = window.innerHeight - 158;
+    card.style.cssText = `position:fixed;left:${left}px;top:${top}px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:14px 16px;width:${W}px;z-index:9999;font-size:13px;pointer-events:none;`;
     card.innerHTML = `
-      <div style="font-weight:600;margin-bottom:8px;color:#1e293b;">${lead.full_name}</div>
-      <div style="color:#475569;display:grid;gap:4px;">
-        <div><b>Email:</b> ${lead.email || '—'}</div>
-        <div><b>Phone:</b> ${lead.phone || '—'}</div>
-        <div><b>Score:</b> ${lead.score}/100</div>
-        <div><b>Source:</b> ${lead.source}</div>
+      <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:10px;">${lead.full_name}</div>
+      <div style="display:grid;gap:5px;color:#475569;">
+        <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Email</span><span style="word-break:break-all;">${lead.email||'—'}</span></div>
+        <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Phone</span><span>${lead.phone||'—'}</span></div>
+        <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Score</span><span style="font-weight:600;color:${scoreColor(lead.score)}">${lead.score}/100</span></div>
+        <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Source</span><span>${pretty(lead.source)}</span></div>
       </div>
     `;
     document.body.appendChild(card);
-    setTimeout(() => card.remove(), 2000);
+    setTimeout(() => card.remove(), 2500);
   }
 
   async function openLeadPanel(id) {
     const lead = await api(`leads/${id}`);
+    const stageColor = lead.stage?.color || '#6366f1';
     document.getElementById("panelTitle").textContent = lead.full_name;
     document.getElementById("leadPanelContent").innerHTML = `
-      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:12px;">
-        <h3 style="font-weight:600;margin-bottom:12px;">Details</h3>
-        <dl style="font-size:14px;display:grid;gap:8px;">
-          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Email</dt><dd style="font-weight:500;">${lead.email || '—'}</dd></div>
-          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Phone</dt><dd style="font-weight:500;">${lead.phone || '—'}</dd></div>
-          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Score</dt><dd style="font-weight:500;">${lead.score}/100</dd></div>
-          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Source</dt><dd style="font-weight:500;">${lead.source}</dd></div>
-          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Created</dt><dd style="font-weight:500;">${new Date(lead.created_at).toLocaleDateString()}</dd></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+        <span style="background:${stageColor};color:#fff;border-radius:20px;padding:2px 12px;font-size:12px;font-weight:600;">${lead.stage?.name||'—'}</span>
+        <span style="background:#f1f5f9;color:#475569;border-radius:20px;padding:2px 12px;font-size:12px;">${pretty(lead.source)}</span>
+        <span style="background:${scoreColor(lead.score)}22;color:${scoreColor(lead.score)};border-radius:20px;padding:2px 12px;font-size:12px;font-weight:600;">Score ${lead.score}</span>
+      </div>
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:8px;">
+        <div style="font-weight:600;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Details</div>
+        <dl style="font-size:14px;display:grid;gap:10px;">
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Email</dt><dd style="font-weight:500;text-align:right;word-break:break-all;">${lead.email||'—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Phone</dt><dd style="font-weight:500;">${lead.phone||'—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Company</dt><dd style="font-weight:500;">${lead.company||'—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Created</dt><dd style="font-weight:500;">${new Date(lead.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>
         </dl>
       </div>
-      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
-        <h3 style="font-weight:600;margin-bottom:12px;">Recent Activities</h3>
-        <div style="font-size:12px;display:grid;gap:8px;">
-          ${(lead.activities || []).slice(0, 5).map(a =>
-            `<div style="border-bottom:1px solid #f1f5f9;padding-bottom:8px;">
-              <div style="font-weight:500;">${a.subject}</div>
-              <div style="color:#94a3b8;">${a.user?.name || 'System'} · ${new Date(a.occurred_at).toLocaleString()}</div>
-            </div>`
-          ).join('')}
-          ${!(lead.activities || []).length ? '<div style="color:#94a3b8;">No activities yet.</div>' : ''}
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
+        <div style="font-weight:600;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Recent Activities</div>
+        <div style="font-size:13px;display:grid;gap:10px;">
+          ${(lead.activities||[]).slice(0,5).map(a=>`
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#6366f1;margin-top:5px;flex-shrink:0;"></div>
+              <div>
+                <div style="font-weight:500;color:#1e293b;">${a.subject}</div>
+                <div style="font-size:12px;color:#94a3b8;margin-top:1px;">${a.user?.name||'System'} · ${new Date(a.occurred_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+              </div>
+            </div>`).join('')}
+          ${!(lead.activities||[]).length?'<div style="color:#94a3b8;font-size:13px;">No activities yet.</div>':''}
         </div>
       </div>
+      <a href="/leads/${lead.id}" style="display:block;text-align:center;margin-top:16px;padding:10px;border:1px solid #6366f1;border-radius:8px;color:#6366f1;font-weight:600;font-size:14px;text-decoration:none;">Open full profile →</a>
     `;
     document.getElementById("leadPanel").style.transform = "translateX(0)";
     document.getElementById("panelOverlay").classList.remove("hidden");
