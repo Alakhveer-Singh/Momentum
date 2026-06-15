@@ -98,7 +98,7 @@
 {% include "partials/lead_modal.html" %}
 
 <!-- Lead detail side panel -->
-<div id="leadPanel" class="fixed right-0 top-0 h-screen w-96 bg-white border-l border-slate-200 shadow-lg transform translate-x-96 transition-transform z-40 overflow-y-auto">
+<div id="leadPanel" class="fixed right-0 top-0 h-screen w-96 bg-white border-l border-slate-200 shadow-lg z-40 overflow-y-auto" style="transform:translateX(100%);transition:transform .3s ease">
   <div class="sticky top-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
     <h2 id="panelTitle" class="font-bold text-lg"></h2>
     <button onclick="closeLeadPanel()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="h-5 w-5"></i></button>
@@ -133,61 +133,58 @@
   });
 
   async function loadLeadPreview(id) {
-    const res = await api(`leads/${id}`);
-    const lead = res;
-    const preview = `
-      <div class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg shadow-lg p-4 max-w-xs z-50">
-        <div class="font-semibold mb-2">${lead.full_name}</div>
-        <div class="text-xs space-y-1 text-slate-600">
-          <div><span class="font-medium">Email:</span> ${lead.email || '—'}</div>
-          <div><span class="font-medium">Phone:</span> ${lead.phone || '—'}</div>
-          <div><span class="font-medium">Score:</span> ${lead.score}/100</div>
-          <div><span class="font-medium">Source:</span> ${lead.source}</div>
-        </div>
+    document.getElementById("lead-hover-card")?.remove();
+    const lead = await api(`leads/${id}`);
+    const card = document.createElement("div");
+    card.id = "lead-hover-card";
+    card.style.cssText = "position:fixed;bottom:24px;right:24px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,.15);padding:16px;width:280px;z-index:9999;font-size:13px;";
+    card.innerHTML = `
+      <div style="font-weight:600;margin-bottom:8px;color:#1e293b;">${lead.full_name}</div>
+      <div style="color:#475569;display:grid;gap:4px;">
+        <div><b>Email:</b> ${lead.email || '—'}</div>
+        <div><b>Phone:</b> ${lead.phone || '—'}</div>
+        <div><b>Score:</b> ${lead.score}/100</div>
+        <div><b>Source:</b> ${lead.source}</div>
       </div>
     `;
-    document.body.insertAdjacentHTML("beforeend", preview);
-    setTimeout(() => {
-      const preview = document.querySelector(".z-50");
-      if (preview) preview.remove();
-    }, 2000);
+    document.body.appendChild(card);
+    setTimeout(() => card.remove(), 2000);
   }
 
   async function openLeadPanel(id) {
-    const res = await api(`leads/${id}`);
-    const lead = res;
+    const lead = await api(`leads/${id}`);
     document.getElementById("panelTitle").textContent = lead.full_name;
-    const html = `
-      <div class="rounded-lg border border-slate-200 p-4">
-        <h3 class="font-semibold mb-3">Details</h3>
-        <dl class="space-y-2 text-sm">
-          <div class="flex justify-between"><dt class="text-slate-400">Email</dt><dd class="font-medium">${lead.email || '—'}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-400">Phone</dt><dd class="font-medium">${lead.phone || '—'}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-400">Score</dt><dd class="font-medium">${lead.score}/100</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-400">Source</dt><dd class="font-medium">${lead.source}</dd></div>
-          <div class="flex justify-between"><dt class="text-slate-400">Created</dt><dd class="font-medium">${new Date(lead.created_at).toLocaleDateString()}</dd></div>
+    document.getElementById("leadPanelContent").innerHTML = `
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:12px;">
+        <h3 style="font-weight:600;margin-bottom:12px;">Details</h3>
+        <dl style="font-size:14px;display:grid;gap:8px;">
+          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Email</dt><dd style="font-weight:500;">${lead.email || '—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Phone</dt><dd style="font-weight:500;">${lead.phone || '—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Score</dt><dd style="font-weight:500;">${lead.score}/100</dd></div>
+          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Source</dt><dd style="font-weight:500;">${lead.source}</dd></div>
+          <div style="display:flex;justify-content:space-between;"><dt style="color:#94a3b8;">Created</dt><dd style="font-weight:500;">${new Date(lead.created_at).toLocaleDateString()}</dd></div>
         </dl>
       </div>
-      <div class="rounded-lg border border-slate-200 p-4">
-        <h3 class="font-semibold mb-3">Recent Activities</h3>
-        <div class="space-y-2 text-xs">
-          ${lead.activities.slice(0, 5).map(a =>
-            \`<div class="border-b border-slate-100 pb-2 last:border-0">
-              <div class="font-medium">\${a.subject}</div>
-              <div class="text-slate-400">\${a.user?.name || 'System'} · \${new Date(a.occurred_at).toLocaleString()}</div>
-            </div>\`
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+        <h3 style="font-weight:600;margin-bottom:12px;">Recent Activities</h3>
+        <div style="font-size:12px;display:grid;gap:8px;">
+          ${(lead.activities || []).slice(0, 5).map(a =>
+            `<div style="border-bottom:1px solid #f1f5f9;padding-bottom:8px;">
+              <div style="font-weight:500;">${a.subject}</div>
+              <div style="color:#94a3b8;">${a.user?.name || 'System'} · ${new Date(a.occurred_at).toLocaleString()}</div>
+            </div>`
           ).join('')}
+          ${!(lead.activities || []).length ? '<div style="color:#94a3b8;">No activities yet.</div>' : ''}
         </div>
       </div>
     `;
-    document.getElementById("leadPanelContent").innerHTML = html;
-    document.getElementById("leadPanel").classList.remove("translate-x-96");
+    document.getElementById("leadPanel").style.transform = "translateX(0)";
     document.getElementById("panelOverlay").classList.remove("hidden");
     lucide.createIcons();
   }
 
   function closeLeadPanel() {
-    document.getElementById("leadPanel").classList.add("translate-x-96");
+    document.getElementById("leadPanel").style.transform = "translateX(100%)";
     document.getElementById("panelOverlay").classList.add("hidden");
   }
 
