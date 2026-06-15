@@ -57,21 +57,21 @@
       </thead>
       <tbody>
         {% for lead in page_obj %}
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openLeadPanel({{ lead.id }})">
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer lead-row" data-id="{{ lead.id }}" data-hover="0">
           <td class="px-4 py-3">
-            <div class="font-medium text-indigo-600 hover:underline">{{ lead.full_name }}</div>
+            <div class="font-medium text-indigo-600">{{ lead.full_name }}</div>
             <div class="text-xs text-slate-400">{{ lead.custom_fields.profile|default:"—" }}</div>
           </td>
           <td class="px-4 py-3">{{ lead.phone|default:"—" }}</td>
           <td class="px-4 py-3">
-            <span class="inline-block rounded px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700" onclick="event.stopPropagation(); editSource({{ lead.id }}, '{{ lead.source|escapejs }}', this)">
-              {{ lead.source|pretty }}
-            </span>
+            <select onchange="changeSource({{ lead.id }}, this.value); event.stopPropagation();" class="rounded px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700 border-0 cursor-pointer">
+              {% for s in sources %}<option value="{{ s }}" {% if s == lead.source %}selected{% endif %}>{{ s|pretty }}</option>{% endfor %}
+            </select>
           </td>
           <td class="px-4 py-3">
-            <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium text-white cursor-pointer" style="background: {{ lead.stage.color }}" onclick="event.stopPropagation(); editStage({{ lead.id }}, {{ lead.stage.id }}, this)">
-              {{ lead.stage.name }}
-            </span>
+            <select onchange="changeStage({{ lead.id }}, this.value); event.stopPropagation();" class="rounded-full px-2 py-0.5 text-xs font-medium text-white border-0 cursor-pointer" style="background: {{ lead.stage.color }}">
+              {% for s in stages %}<option value="{{ s.id }}" {% if s.id == lead.stage.id %}selected{% endif %} style="background: white; color: black;">{{ s.name }}</option>{% endfor %}
+            </select>
           </td>
           <td class="px-4 py-3 text-right font-semibold">{{ lead.score }}</td>
         </tr>
@@ -99,7 +99,11 @@
 
 <!-- Lead detail side panel -->
 <div id="leadPanel" class="fixed right-0 top-0 h-screen w-96 bg-white border-l border-slate-200 shadow-lg transform translate-x-full transition-transform z-40 overflow-y-auto">
-  <div id="leadPanelContent" class="p-6"></div>
+  <div class="sticky top-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+    <h2 id="panelTitle" class="font-bold text-lg"></h2>
+    <button onclick="closeLeadPanel()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="h-5 w-5"></i></button>
+  </div>
+  <div id="leadPanelContent" class="p-6 space-y-4"></div>
 </div>
 <div id="panelOverlay" class="fixed inset-0 bg-black/40 hidden z-30" onclick="closeLeadPanel()"></div>
 {% endblock %}
@@ -109,36 +113,70 @@
   const sources = [{% for s in sources %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}];
   const stages = [{% for s in stages %}{"id":{{ s.id }},"name":"{{ s.name|escapejs }}","color":"{{ s.color }}"}{% if not forloop.last %},{% endif %}{% endfor %}];
 
-  // Hover preview + side panel
+  // Hover preview (0.5s delay) + Click opens side panel
   let hoverTimer = null;
+  document.querySelectorAll(".lead-row").forEach(row => {
+    row.addEventListener("mouseenter", () => {
+      hoverTimer = setTimeout(() => {
+        const id = row.dataset.id;
+        loadLeadPreview(id);
+      }, 500);
+    });
+    row.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimer);
+    });
+    row.addEventListener("click", () => {
+      clearTimeout(hoverTimer);
+      const id = row.dataset.id;
+      openLeadPanel(id);
+    });
+  });
+
+  async function loadLeadPreview(id) {
+    const res = await api(`leads/${id}`);
+    const lead = res;
+    const preview = `
+      <div class="fixed bottom-6 right-6 bg-white border border-slate-200 rounded-lg shadow-lg p-4 max-w-xs z-50">
+        <div class="font-semibold mb-2">${lead.full_name}</div>
+        <div class="text-xs space-y-1 text-slate-600">
+          <div><span class="font-medium">Email:</span> ${lead.email || '—'}</div>
+          <div><span class="font-medium">Phone:</span> ${lead.phone || '—'}</div>
+          <div><span class="font-medium">Score:</span> ${lead.score}/100</div>
+          <div><span class="font-medium">Source:</span> ${lead.source}</div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML("beforeend", preview);
+    setTimeout(() => {
+      const preview = document.querySelector(".z-50");
+      if (preview) preview.remove();
+    }, 2000);
+  }
+
   async function openLeadPanel(id) {
     const res = await api(`leads/${id}`);
     const lead = res;
+    document.getElementById("panelTitle").textContent = lead.full_name;
     const html = `
-      <div class="flex items-start justify-between mb-4">
-        <div>
-          <h2 class="text-xl font-bold">{{ lead.full_name }}</h2>
-          <p class="text-sm text-slate-500">{{ lead.job_title|default:'' }} {% if lead.job_title and lead.company %}·{% endif %} {{ lead.company|default:'' }}</p>
-        </div>
-        <button onclick="closeLeadPanel()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="h-5 w-5"></i></button>
+      <div class="rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold mb-3">Details</h3>
+        <dl class="space-y-2 text-sm">
+          <div class="flex justify-between"><dt class="text-slate-400">Email</dt><dd class="font-medium">${lead.email || '—'}</dd></div>
+          <div class="flex justify-between"><dt class="text-slate-400">Phone</dt><dd class="font-medium">${lead.phone || '—'}</dd></div>
+          <div class="flex justify-between"><dt class="text-slate-400">Score</dt><dd class="font-medium">${lead.score}/100</dd></div>
+          <div class="flex justify-between"><dt class="text-slate-400">Source</dt><dd class="font-medium">${lead.source}</dd></div>
+          <div class="flex justify-between"><dt class="text-slate-400">Created</dt><dd class="font-medium">${new Date(lead.created_at).toLocaleDateString()}</dd></div>
+        </dl>
       </div>
-      <div class="space-y-4">
-        <div class="rounded-lg border border-slate-200 p-4">
-          <h3 class="font-semibold mb-3">Details</h3>
-          <dl class="space-y-2 text-sm">
-            <div class="flex justify-between"><dt class="text-slate-400">Email</dt><dd class="font-medium">${lead.email || '—'}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">Phone</dt><dd class="font-medium">${lead.phone || '—'}</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">Score</dt><dd class="font-medium">${lead.score}/100</dd></div>
-            <div class="flex justify-between"><dt class="text-slate-400">Created</dt><dd class="font-medium">${new Date(lead.created_at).toLocaleDateString()}</dd></div>
-          </dl>
-        </div>
-        <div class="rounded-lg border border-slate-200 p-4">
-          <h3 class="font-semibold mb-3">Activities (last 5)</h3>
-          <div class="space-y-2 text-sm">
-            ${lead.activities.slice(0, 5).map(a =>
-              \`<div class="text-xs text-slate-600">\${a.subject}<br/><span class="text-slate-400">\${a.user?.name || 'System'} · \${new Date(a.occurred_at).toLocaleString()}</span></div>\`
-            ).join('')}
-          </div>
+      <div class="rounded-lg border border-slate-200 p-4">
+        <h3 class="font-semibold mb-3">Recent Activities</h3>
+        <div class="space-y-2 text-xs">
+          ${lead.activities.slice(0, 5).map(a =>
+            \`<div class="border-b border-slate-100 pb-2 last:border-0">
+              <div class="font-medium">\${a.subject}</div>
+              <div class="text-slate-400">\${a.user?.name || 'System'} · \${new Date(a.occurred_at).toLocaleString()}</div>
+            </div>\`
+          ).join('')}
         </div>
       </div>
     `;
@@ -153,23 +191,13 @@
     document.getElementById("panelOverlay").classList.add("hidden");
   }
 
-  // Inline edit Source
-  async function editSource(id, current, el) {
-    const sel = prompt("New source: " + sources.join(", "));
-    if (!sel || !sources.includes(sel)) return;
-    await api(`leads/${id}`, { method: "PUT", body: { source: sel } });
+  async function changeSource(id, newSource) {
+    await api(`leads/${id}`, { method: "PUT", body: { source: newSource } });
     location.reload();
   }
 
-  // Inline edit Stage (auto-logged to activities)
-  async function editStage(id, currentStageId, el) {
-    const stageNames = stages.map(s => s.name).join(", ");
-    const newStageName = prompt("New stage: " + stageNames);
-    if (!newStageName) return;
-    const stage = stages.find(s => s.name === newStageName);
-    if (!stage) { alert("Invalid stage"); return; }
-    // PUT to update stage (auto-logs in web_views.py)
-    await api(`leads/${id}`, { method: "PUT", body: { stage_id: stage.id } });
+  async function changeStage(id, newStageId) {
+    await api(`leads/${id}`, { method: "PUT", body: { stage_id: Number(newStageId) } });
     location.reload();
   }
 
