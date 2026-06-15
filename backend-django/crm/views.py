@@ -665,3 +665,17 @@ class UserViewSet(viewsets.ModelViewSet):
         if user.role == "admin" and User.objects.filter(role="admin").count() <= 1:
             return Response({"message": "Cannot delete the last admin."}, status=422)
         return super().destroy(request, *args, **kwargs)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reset_user_password(request, pk):
+    if not request.user.is_manager_or_admin:
+        return Response({"detail": "Forbidden"}, status=403)
+    user = User.objects.get(pk=pk)
+    new_password = request.data.get("password", "")
+    if len(new_password) < 8:
+        return Response({"detail": "Password must be at least 8 characters"}, status=400)
+    user.set_password(new_password)
+    user.save()
+    return Response({"message": f"Password reset for {user.email}"}, status=200)

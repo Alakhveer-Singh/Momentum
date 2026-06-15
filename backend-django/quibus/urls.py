@@ -44,6 +44,8 @@ api = [
     # Notifications
     path("notifications", views.notifications_view),
     path("notifications/read", views.notifications_read_view),
+    # Admin
+    path("users/<int:pk>/reset-password", views.reset_user_password),
     *router.urls,
 ]
 

@@ -16,7 +16,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Activity, EmailTemplate, Lead, PipelineStage, Task, User
+from .models import Activity, EmailTemplate, Lead, LoginActivity, PipelineStage, Task, User
 
 SOURCES = [
     "web_form", "referral", "google_ads", "facebook_ads",
@@ -53,11 +53,16 @@ def login_page(request):
     if request.method == "POST":
         email = request.POST.get("email", "")
         password = request.POST.get("password", "")
+        ip = request.META.get("REMOTE_ADDR", "")
+        ua = request.META.get("HTTP_USER_AGENT", "")
         user = authenticate(request, username=email, password=password)
         if user is None:
+            LoginActivity.objects.create(email=email, ip_address=ip, user_agent=ua, success=False, reason="Invalid credentials")
             return render(request, "login.html", {"error": "Invalid credentials.", "email": email})
         if not user.is_active:
+            LoginActivity.objects.create(email=email, ip_address=ip, user_agent=ua, success=False, reason="Account deactivated", user=user)
             return render(request, "login.html", {"error": "This account has been deactivated.", "email": email})
+        LoginActivity.objects.create(email=email, ip_address=ip, user_agent=ua, success=True, user=user)
         login(request, user)
         return redirect("/")
     return render(request, "login.html", {})

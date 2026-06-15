@@ -178,3 +178,17 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class LoginActivity(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="login_activities", null=True, blank=True)
+    email = models.EmailField()
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField(blank=True, default="")
+    success = models.BooleanField(default=False)
+    reason = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "-created_at"]), models.Index(fields=["email", "-created_at"])]

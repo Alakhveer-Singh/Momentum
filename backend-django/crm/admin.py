@@ -6,6 +6,7 @@ from .models import (
     CustomFieldDefinition,
     EmailTemplate,
     Lead,
+    LoginActivity,
     Notification,
     PipelineStage,
     Task,
@@ -80,6 +81,15 @@ class EmailTemplateAdmin(admin.ModelAdmin):
 class ActivityAdmin(admin.ModelAdmin):
     list_display = ("subject", "type", "lead", "user", "occurred_at")
     list_filter = ("type",)
+
+
+@admin.register(LoginActivity)
+class LoginActivityAdmin(admin.ModelAdmin):
+    list_display = ("email", "success", "ip_address", "created_at")
+    list_filter = ("success", "created_at")
+    search_fields = ("email", "user__email")
+    readonly_fields = ("email", "ip_address", "user_agent", "success", "reason", "created_at")
+    date_hierarchy = "created_at"
 
 
 admin.site.register(CustomFieldDefinition)
