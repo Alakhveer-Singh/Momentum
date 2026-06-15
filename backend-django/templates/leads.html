@@ -22,7 +22,7 @@
     <input type="hidden" name="tab" value="{{ tab }}" />
     <div class="relative">
       <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
-      <input name="search" value="{{ search }}" placeholder="Search name, email, company…"
+      <input name="search" value="{{ search }}" placeholder="Search name, email…"
              class="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none" />
     </div>
     <select name="source" onchange="this.form.submit()" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
@@ -164,7 +164,8 @@
     setTimeout(() => card.remove(), 2500);
   }
 
-  const ACT_ICONS = {call:'📞',email:'✉️',meeting:'🤝',note:'📝',stage_change:'🔄'};
+  const ACT_COLOR = {call:'#3b82f6',email:'#8b5cf6',meeting:'#059669',note:'#f59e0b',stage_change:'#6366f1',task:'#64748b'};
+  const ACT_LABEL = {call:'Call',email:'Email',meeting:'Meeting',note:'Note',stage_change:'Stage',task:'Task'};
 
   async function openLeadPanel(id) {
     // show loading state
@@ -176,9 +177,9 @@
 
     const lead = await api(`leads/${id}`);
     document.getElementById("panelTitle").textContent = lead.full_name;
-    if (lead.job_title || lead.company) {
+    if (lead.job_title) {
       document.getElementById("panelTitle").insertAdjacentHTML("afterend",
-        `<div id="panelSubtitle" style="font-size:13px;color:#94a3b8;font-weight:400;margin-top:1px;">${[lead.job_title,lead.company].filter(Boolean).join(' · ')}</div>`);
+        `<div id="panelSubtitle" style="font-size:13px;color:#94a3b8;font-weight:400;margin-top:1px;">${lead.job_title}</div>`);
     }
 
     // stage switcher buttons
@@ -207,11 +208,13 @@
     const actHTML = (lead.activities||[]).length
       ? (lead.activities||[]).map(a=>`
           <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #f8fafc;">
-            <div style="font-size:15px;flex-shrink:0;margin-top:1px;">${ACT_ICONS[a.type]||'📌'}</div>
+            <div style="flex-shrink:0;margin-top:2px;">
+              <span style="display:inline-block;background:${ACT_COLOR[a.type]||'#94a3b8'}18;color:${ACT_COLOR[a.type]||'#94a3b8'};border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;letter-spacing:.02em;">${ACT_LABEL[a.type]||'Activity'}</span>
+            </div>
             <div style="flex:1;min-width:0;">
               <div style="font-weight:500;color:#1e293b;font-size:13px;">${a.subject}</div>
               ${a.description?`<div style="color:#64748b;font-size:12px;margin-top:2px;">${a.description}</div>`:''}
-              <div style="color:#94a3b8;font-size:11px;margin-top:3px;">${a.user?.name||'System'} · ${new Date(a.occurred_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+              <div style="color:#94a3b8;font-size:11px;margin-top:3px;">${a.user?.name||'System'} &middot; ${new Date(a.occurred_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
             </div>
           </div>`).join('')
       : '<div style="color:#94a3b8;font-size:13px;">No activities yet.</div>';
@@ -233,7 +236,6 @@
         <dl style="font-size:14px;display:grid;gap:10px;">
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Email</dt><dd style="font-weight:500;text-align:right;word-break:break-all;">${lead.email||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Phone</dt><dd style="font-weight:500;">${lead.phone||'—'}</dd></div>
-          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Company</dt><dd style="font-weight:500;">${lead.company||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Owner</dt><dd style="font-weight:500;">${lead.owner?.name||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Created</dt><dd style="font-weight:500;">${new Date(lead.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>
           ${lead.last_activity_at?`<div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Last activity</dt><dd style="font-weight:500;">${new Date(lead.last_activity_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>`:''}
@@ -249,7 +251,7 @@
         <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Log Activity</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <select id="pnl_type" style="appearance:none;-webkit-appearance:none;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;color:#475569;background:#fff;cursor:pointer;outline:none;">
-            <option value="call">📞 Call</option><option value="email">✉️ Email</option><option value="meeting">🤝 Meeting</option><option value="note">📝 Note</option>
+            <option value="call">Call</option><option value="email">Email</option><option value="meeting">Meeting</option><option value="note">Note</option>
           </select>
           <input id="pnl_subject" placeholder="Subject *" style="flex:1;min-width:120px;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelLogActivity(${id})" />
           <button onclick="panelLogActivity(${id})" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Log</button>

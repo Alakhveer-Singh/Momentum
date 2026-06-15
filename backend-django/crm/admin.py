@@ -56,9 +56,9 @@ class TaskInline(admin.TabularInline):
 
 @admin.register(Lead)
 class LeadAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "company", "email", "source", "stage", "owner", "score", "value")
+    list_display = ("full_name", "email", "source", "stage", "owner", "score", "value")
     list_filter = ("stage", "source", "owner")
-    search_fields = ("first_name", "last_name", "email", "company")
+    search_fields = ("first_name", "last_name", "email")
     inlines = (ActivityInline, TaskInline)
     readonly_fields = ("score", "created_at", "updated_at", "last_activity_at", "converted_at")
 

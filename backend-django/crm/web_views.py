@@ -134,7 +134,7 @@ def leads(request):
     if search:
         qs = qs.filter(
             Q(first_name__icontains=search) | Q(last_name__icontains=search)
-            | Q(email__icontains=search) | Q(company__icontains=search)
+            | Q(email__icontains=search)
         )
     if source:
         qs = qs.filter(source=source)

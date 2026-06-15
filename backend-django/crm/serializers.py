@@ -85,7 +85,6 @@ class ActivitySerializer(serializers.ModelSerializer):
             "id": obj.lead_id,
             "first_name": obj.lead.first_name,
             "last_name": obj.lead.last_name,
-            "company": obj.lead.company,
         }
 
 
@@ -105,7 +104,7 @@ class LeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = [
-            "id", "first_name", "last_name", "email", "phone", "company", "job_title",
+            "id", "first_name", "last_name", "email", "phone", "job_title",
             "source", "stage", "stage_id", "owner", "owner_id", "score", "value", "notes",
             "custom_fields", "lost_reason", "last_activity_at", "converted_at",
             "created_at", "updated_at", "full_name", "activities_count", "tasks_count",
@@ -146,7 +145,6 @@ class TaskSerializer(serializers.ModelSerializer):
             "id": obj.lead_id,
             "first_name": obj.lead.first_name,
             "last_name": obj.lead.last_name,
-            "company": obj.lead.company,
         }
 
 

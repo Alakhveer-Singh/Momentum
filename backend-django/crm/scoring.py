@@ -30,7 +30,7 @@ def calculate(lead) -> int:
     engagement = sum(ACTIVITY_WEIGHTS.get(a.type, 0) for a in lead.activities.all())
     score += min(engagement, ENGAGEMENT_CAP)
 
-    score += sum(1 for f in (lead.email, lead.phone, lead.company) if f)
+    score += sum(1 for f in (lead.email, lead.phone) if f)
     if lead.value and lead.value > 0:
         score += 2
 

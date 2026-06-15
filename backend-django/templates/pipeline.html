@@ -17,7 +17,7 @@
       {% for lead in col.leads %}
       <div draggable="true" data-lead="{{ lead.id }}" class="lead-card cursor-grab rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow">
         <a href="/leads/{{ lead.id }}" class="font-medium text-slate-800 hover:text-indigo-600">{{ lead.full_name }}</a>
-        <div class="text-xs text-slate-500">{{ lead.company }}</div>
+        <div class="text-xs text-slate-500">{{ lead.job_title|default:"" }}</div>
         <div class="mt-2 flex items-center justify-between text-xs">
           <span class="font-semibold text-indigo-600">{{ lead.value|inr }}</span>
           <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium {% if lead.score >= 60 %}bg-emerald-100 text-emerald-700{% elif lead.score >= 30 %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-500{% endif %}">

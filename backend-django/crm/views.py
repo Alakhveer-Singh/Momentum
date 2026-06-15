@@ -125,7 +125,6 @@ def public_lead_view(request):
         last_name=d.get("last_name", ""),
         email=d["email"],
         phone=d.get("phone", ""),
-        company=d.get("company", ""),
         notes=d.get("message", ""),
         source="web_form",
         stage=stage,
@@ -231,7 +230,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         if search := p.get("search"):
             qs = qs.filter(
                 Q(first_name__icontains=search) | Q(last_name__icontains=search)
-                | Q(email__icontains=search) | Q(company__icontains=search)
+                | Q(email__icontains=search)
             )
         if stage_id := p.get("stage_id"):
             qs = qs.filter(stage_id=stage_id)
@@ -309,7 +308,7 @@ def bulk_import_view(request):
         lead = Lead.objects.create(
             first_name=row["first_name"], last_name=row.get("last_name", ""),
             email=row.get("email", ""), phone=row.get("phone", ""),
-            company=row.get("company", ""), job_title=row.get("job_title", ""),
+            job_title=row.get("job_title", ""),
             source=row.get("source", "import"), value=row.get("value") or 0,
             stage=stage, owner_id=row.get("owner_id") or request.user.id,
         )
@@ -562,11 +561,11 @@ def export_leads_csv(request):
 
     def rows():
         writer = csv.writer(_Echo())
-        yield writer.writerow(["ID", "First Name", "Last Name", "Email", "Phone", "Company", "Job Title",
+        yield writer.writerow(["ID", "First Name", "Last Name", "Email", "Phone", "Job Title",
                                "Source", "Stage", "Owner", "Score", "Value", "Created At"])
         for l in qs.iterator():
             yield writer.writerow([
-                l.id, l.first_name, l.last_name, l.email, l.phone, l.company, l.job_title,
+                l.id, l.first_name, l.last_name, l.email, l.phone, l.job_title,
                 l.source, l.stage.name if l.stage_id else "", l.owner.name if l.owner_id else "",
                 l.score, l.value, l.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             ])
@@ -595,11 +594,11 @@ def export_pipeline_pdf(request):
             leads = [l for l in leads if l.owner_id == request.user.id]
         total = sum(float(l.value) for l in leads)
         elems.append(Paragraph(f"<b>{stage.name}</b> — {len(leads)} lead(s), ₹{total:,.0f}", styles["Heading3"]))
-        data = [["Name", "Company", "Owner", "Score", "Value"]]
+        data = [["Name", "Owner", "Score", "Value"]]
         for l in leads:
-            data.append([l.full_name, l.company, l.owner.name if l.owner_id else "", str(l.score), f"₹{l.value:,.0f}"])
+            data.append([l.full_name, l.owner.name if l.owner_id else "", str(l.score), f"₹{l.value:,.0f}"])
         if len(data) > 1:
-            t = Table(data, colWidths=[110, 120, 90, 50, 80])
+            t = Table(data, colWidths=[150, 120, 60, 90])
             t.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),
