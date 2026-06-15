@@ -131,6 +131,8 @@ def leads(request):
     search = request.GET.get("search", "").strip()
     source = request.GET.get("source", "")
     tab = request.GET.get("tab", "")  # '', 'unread', or stage id
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
     if search:
         qs = qs.filter(
             Q(first_name__icontains=search) | Q(last_name__icontains=search)
@@ -138,6 +140,16 @@ def leads(request):
         )
     if source:
         qs = qs.filter(source=source)
+    if date_from:
+        try:
+            qs = qs.filter(created_at__gte=timezone.datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc))
+        except (ValueError, TypeError):
+            pass
+    if date_to:
+        try:
+            qs = qs.filter(created_at__lte=timezone.datetime.fromisoformat(date_to).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc))
+        except (ValueError, TypeError):
+            pass
     if tab == "unread":
         qs = qs.filter(activities_count=0)
     elif tab:
@@ -154,6 +166,7 @@ def leads(request):
         **_base_ctx(request), "active": "leads", "page_obj": page,
         "stages": stages, "stage_counts": counts, "unread_count": unread_count,
         "search": search, "source": source, "tab": tab, "sources": SOURCES,
+        "date_from": date_from, "date_to": date_to,
         "users": User.objects.filter(is_active=True) if user.role != "rep" else [],
         "can_assign": user.role != "rep",
         "can_delete": user.is_manager_or_admin,

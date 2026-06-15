@@ -29,6 +29,8 @@
       <option value="">All sources</option>
       {% for s in sources %}<option value="{{ s }}" {% if s == source %}selected{% endif %}>{{ s|pretty }}</option>{% endfor %}
     </select>
+    <input type="date" name="date_from" value="{{ date_from }}" onchange="this.form.submit()" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" placeholder="From date" title="Filter from date" />
+    <input type="date" name="date_to" value="{{ date_to }}" onchange="this.form.submit()" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" placeholder="To date" title="Filter to date" />
   </form>
 
   <!-- Stage tabs -->
