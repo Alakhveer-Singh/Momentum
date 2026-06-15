@@ -64,14 +64,20 @@
           </td>
           <td class="px-4 py-3">{{ lead.phone|default:"—" }}</td>
           <td class="px-4 py-3">
-            <select onchange="changeSource({{ lead.id }}, this.value); event.stopPropagation();" class="rounded px-2 py-1 text-xs font-medium bg-slate-100 text-slate-700 border-0 cursor-pointer">
-              {% for s in sources %}<option value="{{ s }}" {% if s == lead.source %}selected{% endif %}>{{ s|pretty }}</option>{% endfor %}
-            </select>
+            <div style="position:relative;display:inline-block;" onclick="event.stopPropagation()">
+              <select onchange="changeSource({{ lead.id }}, this.value);" style="appearance:none;-webkit-appearance:none;background:#f1f5f9;border:none;padding:4px 22px 4px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#475569;cursor:pointer;outline:none;">
+                {% for s in sources %}<option value="{{ s }}" {% if s == lead.source %}selected{% endif %}>{{ s|pretty }}</option>{% endfor %}
+              </select>
+              <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;color:#94a3b8;font-size:9px;">▾</span>
+            </div>
           </td>
           <td class="px-4 py-3">
-            <select onchange="changeStage({{ lead.id }}, this.value); event.stopPropagation();" class="rounded-full px-2 py-0.5 text-xs font-medium text-white border-0 cursor-pointer" style="background: {{ lead.stage.color }}">
-              {% for s in stages %}<option value="{{ s.id }}" {% if s.id == lead.stage.id %}selected{% endif %} style="background: white; color: black;">{{ s.name }}</option>{% endfor %}
-            </select>
+            <div style="position:relative;display:inline-block;" onclick="event.stopPropagation()">
+              <select onchange="changeStage({{ lead.id }}, this.value);" style="appearance:none;-webkit-appearance:none;background:{{ lead.stage.color }};border:none;padding:4px 22px 4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;outline:none;">
+                {% for s in stages %}<option value="{{ s.id }}" {% if s.id == lead.stage.id %}selected{% endif %} style="background:#fff;color:#1e293b;">{{ s.name }}</option>{% endfor %}
+              </select>
+              <span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);pointer-events:none;color:rgba(255,255,255,.8);font-size:9px;">▾</span>
+            </div>
           </td>
           <td class="px-4 py-3 text-right font-semibold">{{ lead.score }}</td>
         </tr>
@@ -158,49 +164,135 @@
     setTimeout(() => card.remove(), 2500);
   }
 
+  const ACT_ICONS = {call:'📞',email:'✉️',meeting:'🤝',note:'📝',stage_change:'🔄'};
+
   async function openLeadPanel(id) {
+    // show loading state
+    document.getElementById("leadPanel").style.width = "500px";
+    document.getElementById("leadPanel").style.transform = "translateX(0)";
+    document.getElementById("panelOverlay").classList.remove("hidden");
+    document.getElementById("panelTitle").textContent = "Loading…";
+    document.getElementById("leadPanelContent").innerHTML = '<div style="color:#94a3b8;padding:24px;text-align:center;">Loading…</div>';
+
     const lead = await api(`leads/${id}`);
-    const stageColor = lead.stage?.color || '#6366f1';
     document.getElementById("panelTitle").textContent = lead.full_name;
+    if (lead.job_title || lead.company) {
+      document.getElementById("panelTitle").insertAdjacentHTML("afterend",
+        `<div id="panelSubtitle" style="font-size:13px;color:#94a3b8;font-weight:400;margin-top:1px;">${[lead.job_title,lead.company].filter(Boolean).join(' · ')}</div>`);
+    }
+
+    // stage switcher buttons
+    const stageButtons = stages.map(s =>
+      `<button onclick="panelChangeStage(${id},${s.id})" style="border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;border:2px solid ${s.color};background:${s.id===lead.stage_id?s.color:'transparent'};color:${s.id===lead.stage_id?'#fff':s.color};cursor:pointer;transition:all .15s;">${s.name}</button>`
+    ).join('');
+
+    // custom fields
+    const cfRows = Object.entries(lead.custom_fields||{}).map(([k,v])=>
+      `<div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">${pretty(k)}</dt><dd style="font-weight:500;text-align:right;">${v===true?'Yes':v===false?'No':v}</dd></div>`
+    ).join('');
+
+    // tasks
+    const tasksHTML = (lead.tasks||[]).length ? `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Follow-ups</div>
+        ${(lead.tasks||[]).map(t=>`
+          <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #f8fafc;">
+            <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${t.status==='completed'?'#22c55e':'#f97316'};"></div>
+            <div style="flex:1;font-size:13px;color:${t.status==='completed'?'#94a3b8':'#1e293b'};${t.status==='completed'?'text-decoration:line-through;':''};">${t.title}</div>
+            ${t.due_at?`<div style="font-size:11px;color:#94a3b8;flex-shrink:0;">${new Date(t.due_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>`:''}
+          </div>`).join('')}
+      </div>` : '';
+
+    // activity timeline (ALL)
+    const actHTML = (lead.activities||[]).length
+      ? (lead.activities||[]).map(a=>`
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #f8fafc;">
+            <div style="font-size:15px;flex-shrink:0;margin-top:1px;">${ACT_ICONS[a.type]||'📌'}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:500;color:#1e293b;font-size:13px;">${a.subject}</div>
+              ${a.description?`<div style="color:#64748b;font-size:12px;margin-top:2px;">${a.description}</div>`:''}
+              <div style="color:#94a3b8;font-size:11px;margin-top:3px;">${a.user?.name||'System'} · ${new Date(a.occurred_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+          </div>`).join('')
+      : '<div style="color:#94a3b8;font-size:13px;">No activities yet.</div>';
+
     document.getElementById("leadPanelContent").innerHTML = `
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-        <span style="background:${stageColor};color:#fff;border-radius:20px;padding:2px 12px;font-size:12px;font-weight:600;">${lead.stage?.name||'—'}</span>
-        <span style="background:#f1f5f9;color:#475569;border-radius:20px;padding:2px 12px;font-size:12px;">${pretty(lead.source)}</span>
-        <span style="background:${scoreColor(lead.score)}22;color:${scoreColor(lead.score)};border-radius:20px;padding:2px 12px;font-size:12px;font-weight:600;">Score ${lead.score}</span>
+      <!-- Stage switcher -->
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${stageButtons}</div>
+
+      <!-- Quick badges -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+        <span style="background:#f1f5f9;color:#475569;border-radius:20px;padding:3px 10px;font-size:12px;">${pretty(lead.source)}</span>
+        <span style="background:${scoreColor(lead.score)}18;color:${scoreColor(lead.score)};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">Score ${lead.score}/100</span>
+        ${lead.value&&lead.value!=='0.00'?`<span style="background:#eff6ff;color:#3b82f6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">₹${Number(lead.value).toLocaleString('en-IN')}</span>`:''}
       </div>
-      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:8px;">
-        <div style="font-weight:600;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Details</div>
+
+      <!-- Details -->
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Details</div>
         <dl style="font-size:14px;display:grid;gap:10px;">
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Email</dt><dd style="font-weight:500;text-align:right;word-break:break-all;">${lead.email||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Phone</dt><dd style="font-weight:500;">${lead.phone||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Company</dt><dd style="font-weight:500;">${lead.company||'—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Owner</dt><dd style="font-weight:500;">${lead.owner?.name||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Created</dt><dd style="font-weight:500;">${new Date(lead.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>
+          ${lead.last_activity_at?`<div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Last activity</dt><dd style="font-weight:500;">${new Date(lead.last_activity_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>`:''}
+          ${cfRows}
         </dl>
+        ${lead.notes?`<div style="margin-top:12px;padding:10px;background:#f8fafc;border-radius:8px;font-size:13px;color:#475569;border-left:3px solid #6366f1;">${lead.notes}</div>`:''}
       </div>
+
+      ${tasksHTML}
+
+      <!-- Log Activity -->
       <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
-        <div style="font-weight:600;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Recent Activities</div>
-        <div style="font-size:13px;display:grid;gap:10px;">
-          ${(lead.activities||[]).slice(0,5).map(a=>`
-            <div style="display:flex;gap:10px;align-items:flex-start;">
-              <div style="width:6px;height:6px;border-radius:50%;background:#6366f1;margin-top:5px;flex-shrink:0;"></div>
-              <div>
-                <div style="font-weight:500;color:#1e293b;">${a.subject}</div>
-                <div style="font-size:12px;color:#94a3b8;margin-top:1px;">${a.user?.name||'System'} · ${new Date(a.occurred_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
-              </div>
-            </div>`).join('')}
-          ${!(lead.activities||[]).length?'<div style="color:#94a3b8;font-size:13px;">No activities yet.</div>':''}
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Log Activity</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="pnl_type" style="appearance:none;-webkit-appearance:none;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;color:#475569;background:#fff;cursor:pointer;outline:none;">
+            <option value="call">📞 Call</option><option value="email">✉️ Email</option><option value="meeting">🤝 Meeting</option><option value="note">📝 Note</option>
+          </select>
+          <input id="pnl_subject" placeholder="Subject *" style="flex:1;min-width:120px;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelLogActivity(${id})" />
+          <button onclick="panelLogActivity(${id})" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Log</button>
         </div>
       </div>
-      <a href="/leads/${lead.id}" style="display:block;text-align:center;margin-top:16px;padding:10px;border:1px solid #6366f1;border-radius:8px;color:#6366f1;font-weight:600;font-size:14px;text-decoration:none;">Open full profile →</a>
+
+      <!-- Full Timeline -->
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;margin-bottom:8px;">
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Activity Timeline</div>
+        <div style="font-size:13px;">${actHTML}</div>
+      </div>
     `;
-    document.getElementById("leadPanel").style.transform = "translateX(0)";
-    document.getElementById("panelOverlay").classList.remove("hidden");
     lucide.createIcons();
+  }
+
+  async function panelChangeStage(leadId, stageId) {
+    await api(`leads/${leadId}`, { method: "PUT", body: { stage_id: stageId } });
+    // re-render panel and update row stage pill in table
+    openLeadPanel(leadId);
+    const row = document.querySelector(`.lead-row[data-id="${leadId}"]`);
+    if (row) {
+      const stg = stages.find(s=>s.id===stageId);
+      if (stg) {
+        const sel = row.querySelector('select:last-of-type');
+        if (sel) { sel.parentElement.querySelector('select').style.background = stg.color; sel.value = stageId; }
+      }
+    }
+  }
+
+  async function panelLogActivity(leadId) {
+    const subject = document.getElementById("pnl_subject")?.value?.trim();
+    if (!subject) { document.getElementById("pnl_subject")?.focus(); return; }
+    const btn = document.querySelector(`button[onclick="panelLogActivity(${leadId})"]`);
+    if (btn) btn.textContent = "…";
+    await api("activities", { method: "POST", body: {
+      type: document.getElementById("pnl_type").value, subject, lead_id: leadId }});
+    openLeadPanel(leadId);
   }
 
   function closeLeadPanel() {
     document.getElementById("leadPanel").style.transform = "translateX(100%)";
     document.getElementById("panelOverlay").classList.add("hidden");
+    document.getElementById("panelSubtitle")?.remove();
   }
 
   async function changeSource(id, newSource) {
