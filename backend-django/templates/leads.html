@@ -57,7 +57,7 @@
       </thead>
       <tbody>
         {% for lead in page_obj %}
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer lead-row" data-id="{{ lead.id }}" data-hover="0">
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer lead-row" data-id="{{ lead.id }}">
           <td class="px-4 py-3">
             <div class="font-medium text-indigo-600">{{ lead.full_name }}</div>
             <div class="text-xs text-slate-400">{{ lead.custom_fields.profile|default:"—" }}</div>
@@ -98,7 +98,7 @@
 {% include "partials/lead_modal.html" %}
 
 <!-- Lead detail side panel -->
-<div id="leadPanel" class="fixed right-0 top-0 h-screen w-96 bg-white border-l border-slate-200 shadow-lg transform translate-x-full transition-transform z-40 overflow-y-auto">
+<div id="leadPanel" class="fixed right-0 top-0 h-screen w-96 bg-white border-l border-slate-200 shadow-lg transform translate-x-96 transition-transform z-40 overflow-y-auto">
   <div class="sticky top-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
     <h2 id="panelTitle" class="font-bold text-lg"></h2>
     <button onclick="closeLeadPanel()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="h-5 w-5"></i></button>
@@ -181,13 +181,13 @@
       </div>
     `;
     document.getElementById("leadPanelContent").innerHTML = html;
-    document.getElementById("leadPanel").classList.remove("translate-x-full");
+    document.getElementById("leadPanel").classList.remove("translate-x-96");
     document.getElementById("panelOverlay").classList.remove("hidden");
     lucide.createIcons();
   }
 
   function closeLeadPanel() {
-    document.getElementById("leadPanel").classList.add("translate-x-full");
+    document.getElementById("leadPanel").classList.add("translate-x-96");
     document.getElementById("panelOverlay").classList.add("hidden");
   }
 
