@@ -1,96 +1,76 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mx-auto max-w-2xl space-y-8">
+<div class="mx-auto max-w-xl space-y-2">
   <div class="mb-6">
-    <h1 class="text-xl font-bold">Lead Funnel</h1>
+    <h1 class="text-xl font-bold">Lead funnel</h1>
     <p class="mt-1 text-sm text-slate-500">Customize the lead funnel by creating, deleting, rearranging or renaming stages.</p>
   </div>
 
-  {% for section_type, section_label, section_rows in sections %}
-  <div class="rounded-lg border border-slate-200 bg-white p-4">
-    <div class="mb-4 flex items-center justify-between">
-      <h2 class="font-semibold text-slate-900">{{ section_label }}</h2>
-      {% if can_edit %}
-      <button onclick="addStage('{{ section_type }}')" class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-4 w-4"></i> Add</button>
-      {% endif %}
-    </div>
+  {% include "partials/funnel_section.html" with label="Top" rows=entry %}
 
-    <div id="list-{{ section_type }}" class="space-y-2">
-      {% for s in section_rows %}
-      <div class="stage-row flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm" draggable="{{ can_edit|yesno:'true,false' }}" data-id="{{ s.id }}" data-type="{{ section_type }}">
+  <div class="my-6">
+    <div class="mb-2 flex items-center gap-2">
+      <div class="flex flex-col gap-0.5"><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-3 rounded bg-slate-400"></span></div>
+      <span class="text-sm font-semibold text-slate-600">Middle</span>
+    </div>
+    <div id="middleList">
+      {% for s in middle %}
+      <div class="middle-row flex items-center gap-3 border-b border-slate-100 py-3 text-sm" draggable="{{ can_edit|yesno:'true,false' }}" data-id="{{ s.id }}">
         {% if can_edit %}<i data-lucide="grip-vertical" class="h-4 w-4 shrink-0 cursor-grab text-slate-300"></i>{% else %}<span class="h-4 w-4"></span>{% endif %}
         <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style="background: {{ s.color }}"></span>
-        <span class="name flex-1 font-medium text-slate-900">{{ s.name }}</span>
+        <span class="name flex-1 text-indigo-600">{{ s.name }}</span>
         {% if can_edit %}
         <div class="flex items-center gap-1">
-          <button onclick="renameStage({{ s.id }}, this)" class="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-600"><i data-lucide="pencil" class="h-3.5 w-3.5"></i></button>
-          <button onclick="deleteStage({{ s.id }}, '{{ s.name|escapejs }}')" class="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i></button>
+          <button onclick="renameStage({{ s.id }}, this)" class="rounded p-1 text-slate-400 hover:bg-slate-100"><i data-lucide="pencil" class="h-3.5 w-3.5"></i></button>
+          <button onclick="deleteStage({{ s.id }}, '{{ s.name|escapejs }}')" class="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"><i data-lucide="x" class="h-3.5 w-3.5"></i></button>
         </div>
         {% endif %}
       </div>
       {% endfor %}
     </div>
+    {% if can_edit %}
+    <button onclick="addStage()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-4 w-4"></i> Add stage</button>
+    {% endif %}
   </div>
-  {% endfor %}
+
+  {% include "partials/funnel_section.html" with label="Bottom" rows=won %}
+  {% include "partials/funnel_section.html" with label="Complete" rows=lost %}
 </div>
 {% endblock %}
 {% block page_js %}
 <script>
-  const sections = {
-    entry: "Top",
-    middle: "Middle",
-    won: "Bottom",
-    lost: "Complete"
-  };
-
   async function renameStage(id, btn) {
-    const row = btn.closest(".stage-row");
-    const span = row.querySelector(".name");
+    const row = btn.closest(".middle-row"); const span = row.querySelector(".name");
     const name = prompt("Rename stage", span.textContent.trim());
     if (!name || name.trim() === span.textContent.trim()) return;
     await api(`stages/${id}`, { method: "PATCH", body: { name: name.trim() } });
     span.textContent = name.trim();
   }
-
   async function deleteStage(id, name) {
     if (!confirm(`Delete "${name}"? Leads in this stage will move to the entry stage.`)) return;
-    await api(`stages/${id}/delete`, { method: "DELETE" });
-    location.reload();
+    await api(`stages/${id}/delete`, { method: "DELETE" }); location.reload();
+  }
+  async function addStage() {
+    const name = prompt("New stage name"); if (!name || !name.trim()) return;
+    await api("stages/create", { method: "POST", body: { name: name.trim() } }); location.reload();
   }
 
-  async function addStage(type) {
-    const name = prompt("New stage name");
-    if (!name || !name.trim()) return;
-    await api("stages/create", { method: "POST", body: { name: name.trim(), stage_type: type } });
-    location.reload();
-  }
-
-  // Drag reorder for all sections
+  // Drag reorder (middle only)
   {% if can_edit %}
   let dragId = null;
-  let dragType = null;
-
-  ["entry", "middle", "won", "lost"].forEach((type) => {
-    const list = document.getElementById(`list-${type}`);
-    list.querySelectorAll(".stage-row").forEach((row) => {
-      row.addEventListener("dragstart", () => {
-        dragId = row.dataset.id;
-        dragType = row.dataset.type;
-        row.classList.add("opacity-40");
-      });
-      row.addEventListener("dragend", () => row.classList.remove("opacity-40"));
-      row.addEventListener("dragover", (e) => e.preventDefault());
-      row.addEventListener("drop", async () => {
-        if (row.dataset.type !== dragType) return;
-        const target = row;
-        const dragging = list.querySelector(`.stage-row[data-id="${dragId}"]`);
-        if (!dragging || dragging === target) return;
-        list.insertBefore(dragging, target);
-        const ids = [...list.querySelectorAll(".stage-row")].map((r) => Number(r.dataset.id));
-        await api("stages/reorder", { method: "POST", body: { ids } });
-        dragId = null;
-        dragType = null;
-      });
+  const list = document.getElementById("middleList");
+  list.querySelectorAll(".middle-row").forEach((row) => {
+    row.addEventListener("dragstart", () => { dragId = row.dataset.id; row.classList.add("opacity-40"); });
+    row.addEventListener("dragend", () => row.classList.remove("opacity-40"));
+    row.addEventListener("dragover", (e) => e.preventDefault());
+    row.addEventListener("drop", async () => {
+      const target = row;
+      const dragging = list.querySelector(`.middle-row[data-id="${dragId}"]`);
+      if (!dragging || dragging === target) return;
+      list.insertBefore(dragging, target);
+      const ids = [...list.querySelectorAll(".middle-row")].map((r) => Number(r.dataset.id));
+      await api("stages/reorder", { method: "POST", body: { ids } });
+      dragId = null;
     });
   });
   {% endif %}
