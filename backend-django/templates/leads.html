@@ -260,10 +260,15 @@
         `<div id="panelSubtitle" style="font-size:13px;color:#94a3b8;font-weight:400;margin-top:1px;">${lead.job_title}</div>`);
     }
 
-    // stage switcher buttons
-    const stageButtons = stages.map(s =>
-      `<button onclick="panelChangeStage(${id},${s.id})" style="border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;border:2px solid ${s.color};background:${s.id===lead.stage_id?s.color:'transparent'};color:${s.id===lead.stage_id?'#fff':s.color};cursor:pointer;transition:all .15s;">${s.name}</button>`
-    ).join('');
+    // stage switcher breadcrumb (color-coded, chevron-separated)
+    const stageButtons = stages.map((s, i) => {
+      const active = s.id === lead.stage_id;
+      const chip = active
+        ? `<span onclick="panelChangeStage(${id},${s.id})" style="background:${s.color};color:#fff;border-radius:8px;padding:3px 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">${s.name}</span>`
+        : `<span onclick="panelChangeStage(${id},${s.id})" style="color:${s.color};font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;padding:3px 4px;border-radius:8px;transition:background .12s;" onmouseover="this.style.background='${s.color}14'" onmouseout="this.style.background='transparent'">${s.name}</span>`;
+      const sep = i < stages.length - 1 ? `<span style="color:#cbd5e1;font-size:13px;">›</span>` : '';
+      return chip + sep;
+    }).join('');
 
     // custom fields
     const cfRows = Object.entries(lead.custom_fields||{}).map(([k,v])=>
@@ -302,7 +307,7 @@
 
     document.getElementById("leadPanelContent").innerHTML = `
       <!-- Stage switcher -->
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">${stageButtons}</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">${stageButtons}</div>
 
       <!-- Quick badges -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
