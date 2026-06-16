@@ -263,6 +263,7 @@
           </select>
           <input id="pnl_subject" placeholder="Subject *" style="flex:1;min-width:120px;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelLogActivity(${id})" />
           <button onclick="panelLogActivity(${id})" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Log</button>
+          <button onclick="showAddFollowup(${id})" style="background:#10b981;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Add Follow-up</button>
         </div>
       </div>
 
@@ -297,6 +298,19 @@
     await api("activities", { method: "POST", body: {
       type: document.getElementById("pnl_type").value, subject, lead_id: leadId }});
     openLeadPanel(leadId);
+  }
+
+  function showAddFollowup(leadId) {
+    const now = new Date();
+    const dueTime = new Date(now.getTime() + 30 * 60000);
+    const dueStr = dueTime.toISOString().slice(0, 16);
+    const title = prompt("Follow-up title:", "Follow up");
+    if (!title || !title.trim()) return;
+    const dueDateInput = prompt("Due date and time (YYYY-MM-DDTHH:mm):", dueStr);
+    if (!dueDateInput) return;
+    api("tasks", { method: "POST", body: {
+      lead_id: leadId, title: title.trim(), due_at: dueDateInput, priority: "medium", status: "pending"
+    }}).then(() => openLeadPanel(leadId)).catch(err => alert("Failed to create follow-up: " + (err.data?.message || err.message)));
   }
 
   function closeLeadPanel() {
