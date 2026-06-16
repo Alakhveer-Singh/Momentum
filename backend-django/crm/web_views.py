@@ -55,8 +55,12 @@ def login_page(request):
         password = request.POST.get("password", "")
         ip = request.META.get("REMOTE_ADDR", "")
         ua = request.META.get("HTTP_USER_AGENT", "")
-        user = authenticate(request, username=email, password=password)
-        if user is None:
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            LoginActivity.objects.create(email=email, ip_address=ip, user_agent=ua, success=False, reason="Invalid credentials")
+            return render(request, "login.html", {"error": "Invalid credentials.", "email": email})
+        if not user.check_password(password):
             LoginActivity.objects.create(email=email, ip_address=ip, user_agent=ua, success=False, reason="Invalid credentials")
             return render(request, "login.html", {"error": "Invalid credentials.", "email": email})
         if not user.is_active:
