@@ -75,7 +75,11 @@ def login_view(request):
     if not user.check_password(password):
         return Response({"message": "Invalid credentials.", "errors": {"email": ["Invalid credentials."]}}, status=422)
     if not user.is_active:
-        return Response({"message": "This account has been deactivated.", "errors": {"email": ["Deactivated."]}}, status=422)
+        admin = User.objects.filter(role="admin").first()
+        admin_email = admin.email if admin else "admin@quibus.in"
+        admin_phone = admin.phone if admin else "N/A"
+        msg = f"Your account has been suspended by the Super Admin. If you think we made a mistake and would like to turn your account back on, please contact the Super Admin ({admin_email}, {admin_phone})"
+        return Response({"message": msg, "errors": {"email": [msg]}}, status=422)
     return Response(_token_response(user))
 
 
