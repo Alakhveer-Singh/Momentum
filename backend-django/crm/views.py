@@ -157,7 +157,8 @@ def stage_create_view(request):
     if not name:
         return Response({"detail": "Name required"}, status=400)
     color = request.data.get("color", "#6366f1")
-    max_pos = PipelineStage.objects.filter(stage_type="middle").aggregate(m=__import__("django.db.models", fromlist=["Max"]).Max("position"))["m"] or 0
+    stage_type = request.data.get("stage_type", "middle")
+    max_pos = PipelineStage.objects.filter(stage_type=stage_type).aggregate(m=Max("position"))["m"] or 0
     import re
     slug_base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     slug = slug_base
@@ -165,7 +166,7 @@ def stage_create_view(request):
     while PipelineStage.objects.filter(slug=slug).exists():
         slug = f"{slug_base}-{n}"
         n += 1
-    stage = PipelineStage.objects.create(name=name, slug=slug, position=max_pos + 1, color=color, stage_type="middle")
+    stage = PipelineStage.objects.create(name=name, slug=slug, position=max_pos + 1, color=color, stage_type=stage_type)
     return Response(PipelineStageSerializer(stage).data, status=201)
 
 
@@ -174,8 +175,6 @@ def stage_update_view(request, pk):
     if request.user.role not in ("admin", "manager"):
         return Response({"detail": "Forbidden"}, status=403)
     stage = PipelineStage.objects.get(pk=pk)
-    if stage.stage_type != "middle":
-        return Response({"detail": "Cannot rename fixed stages"}, status=400)
     if name := (request.data.get("name") or "").strip():
         stage.name = name
     if color := request.data.get("color"):
@@ -189,8 +188,6 @@ def stage_delete_view(request, pk):
     if request.user.role not in ("admin", "manager"):
         return Response({"detail": "Forbidden"}, status=403)
     stage = PipelineStage.objects.get(pk=pk)
-    if stage.stage_type != "middle":
-        return Response({"detail": "Cannot delete fixed stages"}, status=400)
     entry = PipelineStage.objects.filter(stage_type="entry").first()
     Lead.objects.filter(stage=stage).update(stage=entry)
     stage.delete()
@@ -202,8 +199,8 @@ def stage_reorder_view(request):
     if request.user.role not in ("admin", "manager"):
         return Response({"detail": "Forbidden"}, status=403)
     ids = request.data.get("ids", [])
-    for pos, sid in enumerate(ids, start=2):
-        PipelineStage.objects.filter(pk=sid, stage_type="middle").update(position=pos)
+    for pos, sid in enumerate(ids, start=1):
+        PipelineStage.objects.filter(pk=sid).update(position=pos)
     return Response({"ok": True})
 
 
