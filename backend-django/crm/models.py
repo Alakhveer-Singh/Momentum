@@ -51,6 +51,19 @@ class PipelineStage(models.Model):
         return self.name
 
 
+class LeadSource(models.Model):
+    slug = models.SlugField(unique=True)
+    label = models.CharField(max_length=100)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "label"]
+
+    def __str__(self):
+        return self.label
+
+
 class CustomFieldDefinition(models.Model):
     class FieldType(models.TextChoices):
         TEXT = "text"

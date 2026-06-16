@@ -46,6 +46,11 @@ api = [
     path("notifications/read", views.notifications_read_view),
     # Admin
     path("users/<int:pk>/reset-password", views.reset_user_password),
+    # Sources
+    path("sources", views.sources_list_view),
+    path("sources/create", views.source_create_view),
+    path("sources/<int:pk>", views.source_update_view),
+    path("sources/<int:pk>/delete", views.source_delete_view),
     *router.urls,
 ]
 

@@ -19,6 +19,7 @@ from .models import (
     CustomFieldDefinition,
     EmailTemplate,
     Lead,
+    LeadSource,
     PipelineStage,
     Task,
     User,
@@ -680,3 +681,53 @@ def reset_user_password(request, pk):
     user.set_password(new_password)
     user.save()
     return Response({"message": f"Password reset for {user.email}"}, status=200)
+
+
+# --- Source Master -----------------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sources_list_view(request):
+    sources = LeadSource.objects.all()
+    return Response([{"id": s.id, "slug": s.slug, "label": s.label, "position": s.position} for s in sources])
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def source_create_view(request):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    label = (request.data.get("label") or "").strip()
+    if not label:
+        return Response({"detail": "Label required"}, status=400)
+    import re
+    slug_base = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+    slug = slug_base
+    n = 1
+    while LeadSource.objects.filter(slug=slug).exists():
+        slug = f"{slug_base}_{n}"
+        n += 1
+    max_pos = LeadSource.objects.count()
+    source = LeadSource.objects.create(slug=slug, label=label, position=max_pos)
+    return Response({"id": source.id, "slug": source.slug, "label": source.label}, status=201)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def source_update_view(request, pk):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    source = LeadSource.objects.get(pk=pk)
+    if label := (request.data.get("label") or "").strip():
+        source.label = label
+    source.save()
+    return Response({"id": source.id, "slug": source.slug, "label": source.label})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def source_delete_view(request, pk):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    source = LeadSource.objects.get(pk=pk)
+    source.delete()
+    return Response(status=204)

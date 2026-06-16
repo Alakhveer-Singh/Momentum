@@ -18,7 +18,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Activity, EmailTemplate, Lead, LoginActivity, PipelineStage, Task, User
+from .models import Activity, EmailTemplate, Lead, LeadSource, LoginActivity, PipelineStage, Task, User
 
 SOURCES = [
     "web_form", "referral", "google_ads", "facebook_ads",
@@ -347,8 +347,7 @@ def funnel(request):
 def source_master(request):
     ctx = {
         **_base_ctx(request), "active": "sources",
-        "sources": SOURCES,
-        "can_edit": True,
+        "sources": LeadSource.objects.all(),
     }
     return render(request, "source_master.html", ctx)
 
