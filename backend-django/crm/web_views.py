@@ -6,6 +6,8 @@ auth + CSRF). Realtime uses the Channels consumer, authenticated with a short
 JWT embedded in the page.
 """
 
+import datetime
+
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -155,12 +157,12 @@ def leads(request):
         qs = qs.filter(source=source)
     if date_from:
         try:
-            qs = qs.filter(created_at__gte=timezone.datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc))
+            qs = qs.filter(created_at__gte=timezone.datetime.fromisoformat(date_from).replace(tzinfo=datetime.timezone.utc))
         except (ValueError, TypeError):
             pass
     if date_to:
         try:
-            qs = qs.filter(created_at__lte=timezone.datetime.fromisoformat(date_to).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc))
+            qs = qs.filter(created_at__lte=timezone.datetime.fromisoformat(date_to).replace(hour=23, minute=59, second=59, tzinfo=datetime.timezone.utc))
         except (ValueError, TypeError):
             pass
     if tab == "unread":
