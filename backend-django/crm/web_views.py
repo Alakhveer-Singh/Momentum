@@ -61,7 +61,11 @@ def login_page(request):
             return render(request, "login.html", {"error": "Invalid credentials.", "email": email})
         if not user.is_active:
             LoginActivity.objects.create(email=email, ip_address=ip, user_agent=ua, success=False, reason="Account deactivated", user=user)
-            return render(request, "login.html", {"error": "This account has been deactivated.", "email": email})
+            admin = User.objects.filter(role="admin").first()
+            admin_email = admin.email if admin else "admin@quibus.in"
+            admin_phone = admin.phone if admin else "N/A"
+            error_msg = f"Your account has been suspended by the Super Admin. If you think we made a mistake and would like to turn your account back on, please contact the Super Admin ({admin_email}, {admin_phone})"
+            return render(request, "login.html", {"error": error_msg, "email": email})
         LoginActivity.objects.create(email=email, ip_address=ip, user_agent=ua, success=True, user=user)
         login(request, user)
         return redirect("/")
