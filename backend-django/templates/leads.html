@@ -313,8 +313,9 @@
     const dueDateInput = prompt("Due date & time (YYYY-MM-DDTHH:mm):", dueStr);
     if (!dueDateInput) return;
     const title = `Follow-up: ${leadName}`;
+    const userId = Number(document.querySelector('meta[name="user-id"]')?.content);
     api("tasks", { method: "POST", body: {
-      lead_id: leadId, title, due_at: dueDateInput, priority: "medium", status: "pending"
+      lead_id: leadId, title, due_at: dueDateInput, priority: "medium", status: "pending", assigned_to: userId
     }}).then(() => openLeadPanel(leadId)).catch(err => alert("Failed: " + (err.data?.message || err.message)));
   }
 
