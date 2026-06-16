@@ -8,14 +8,9 @@
 
   {% for section_type, section_label, section_rows in sections %}
   <div class="mb-6">
-    <div class="mb-2 flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <div class="flex flex-col gap-0.5"><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-3 rounded bg-slate-400"></span></div>
-        <span class="text-sm font-semibold text-slate-600">{{ section_label }}</span>
-      </div>
-      {% if can_edit %}
-      <button onclick="addStage('{{ section_type }}')" class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-3.5 w-3.5"></i> Add</button>
-      {% endif %}
+    <div class="mb-2 flex items-center gap-2">
+      <div class="flex flex-col gap-0.5"><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-3 rounded bg-slate-400"></span></div>
+      <span class="text-sm font-semibold text-slate-600">{{ section_label }}</span>
     </div>
     <div id="list-{{ section_type }}">
       {% for s in section_rows %}
@@ -32,6 +27,9 @@
       </div>
       {% endfor %}
     </div>
+    {% if can_edit %}
+    <button onclick="addStage('{{ section_type }}')" class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-4 w-4"></i> Add stage</button>
+    {% endif %}
   </div>
   {% endfor %}
 </div>

@@ -2,7 +2,7 @@ import csv
 from io import BytesIO
 
 from django.core.mail import send_mail
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, Max, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils import timezone
