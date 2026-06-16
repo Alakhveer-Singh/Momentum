@@ -29,6 +29,9 @@
       <a href="/templates" class="{{ cls }} {% if active == 'templates' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="mail" class="h-5 w-5"></i> Email Templates</a>
       <a href="/reports" class="{{ cls }} {% if active == 'reports' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="trending-up" class="h-5 w-5"></i> Reports</a>
       <a href="/funnel" class="{{ cls }} {% if active == 'funnel' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="filter" class="h-5 w-5"></i> Lead Funnel</a>
+      {% if me.role == 'admin' or me.role == 'manager' %}
+      <a href="/sources" class="{{ cls }} {% if active == 'sources' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="tag" class="h-5 w-5"></i> Source Master</a>
+      {% endif %}
       {% if me.role == 'admin' %}
       <a href="/users" class="{{ cls }} {% if active == 'users' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="shield-check" class="h-5 w-5"></i> Team &amp; Roles</a>
       {% endif %}

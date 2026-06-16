@@ -61,6 +61,7 @@ web = [
     path("reports", web_views.reports),
     path("users", web_views.users_page),
     path("funnel", web_views.funnel),
+    path("sources", web_views.source_master),
     path("profile", web_views.profile),
 ]
 

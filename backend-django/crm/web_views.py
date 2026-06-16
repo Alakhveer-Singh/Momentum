@@ -340,6 +340,21 @@ def funnel(request):
     return render(request, "funnel.html", ctx)
 
 
+# --- Source Master ----------------------------------------------------------
+def _is_admin_or_manager(u):
+    return u.is_authenticated and u.role in ("admin", "manager")
+
+
+@user_passes_test(_is_admin_or_manager, login_url="/login")
+def source_master(request):
+    ctx = {
+        **_base_ctx(request), "active": "sources",
+        "sources": SOURCES,
+        "can_edit": request.user.role in ("admin", "manager"),
+    }
+    return render(request, "source_master.html", ctx)
+
+
 # --- Profile ----------------------------------------------------------------
 @login_required
 def profile(request):
