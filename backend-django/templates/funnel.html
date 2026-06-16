@@ -6,16 +6,20 @@
     <p class="mt-1 text-sm text-slate-500">Customize the lead funnel by creating, deleting, rearranging or renaming stages.</p>
   </div>
 
-  {% include "partials/funnel_section.html" with label="Top" rows=entry %}
-
-  <div class="my-6">
-    <div class="mb-2 flex items-center gap-2">
-      <div class="flex flex-col gap-0.5"><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-3 rounded bg-slate-400"></span></div>
-      <span class="text-sm font-semibold text-slate-600">Middle</span>
+  {% for section_type, section_label, section_rows in sections %}
+  <div class="mb-6">
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <div class="flex flex-col gap-0.5"><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-5 rounded bg-slate-400"></span><span class="h-1 w-3 rounded bg-slate-400"></span></div>
+        <span class="text-sm font-semibold text-slate-600">{{ section_label }}</span>
+      </div>
+      {% if can_edit %}
+      <button onclick="addStage('{{ section_type }}')" class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-3.5 w-3.5"></i> Add</button>
+      {% endif %}
     </div>
-    <div id="middleList">
-      {% for s in middle %}
-      <div class="middle-row flex items-center gap-3 border-b border-slate-100 py-3 text-sm" draggable="{{ can_edit|yesno:'true,false' }}" data-id="{{ s.id }}">
+    <div id="list-{{ section_type }}">
+      {% for s in section_rows %}
+      <div class="stage-row flex items-center gap-3 border-b border-slate-100 py-3 text-sm" draggable="{{ can_edit|yesno:'true,false' }}" data-id="{{ s.id }}" data-type="{{ section_type }}">
         {% if can_edit %}<i data-lucide="grip-vertical" class="h-4 w-4 shrink-0 cursor-grab text-slate-300"></i>{% else %}<span class="h-4 w-4"></span>{% endif %}
         <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style="background: {{ s.color }}"></span>
         <span class="name flex-1 text-indigo-600">{{ s.name }}</span>
@@ -28,49 +32,54 @@
       </div>
       {% endfor %}
     </div>
-    {% if can_edit %}
-    <button onclick="addStage()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-4 w-4"></i> Add stage</button>
-    {% endif %}
   </div>
-
-  {% include "partials/funnel_section.html" with label="Bottom" rows=won %}
-  {% include "partials/funnel_section.html" with label="Complete" rows=lost %}
+  {% endfor %}
 </div>
 {% endblock %}
 {% block page_js %}
 <script>
   async function renameStage(id, btn) {
-    const row = btn.closest(".middle-row"); const span = row.querySelector(".name");
+    const row = btn.closest(".stage-row");
+    const span = row.querySelector(".name");
     const name = prompt("Rename stage", span.textContent.trim());
     if (!name || name.trim() === span.textContent.trim()) return;
     await api(`stages/${id}`, { method: "PATCH", body: { name: name.trim() } });
     span.textContent = name.trim();
   }
+
   async function deleteStage(id, name) {
     if (!confirm(`Delete "${name}"? Leads in this stage will move to the entry stage.`)) return;
-    await api(`stages/${id}/delete`, { method: "DELETE" }); location.reload();
-  }
-  async function addStage() {
-    const name = prompt("New stage name"); if (!name || !name.trim()) return;
-    await api("stages/create", { method: "POST", body: { name: name.trim() } }); location.reload();
+    await api(`stages/${id}/delete`, { method: "DELETE" });
+    location.reload();
   }
 
-  // Drag reorder (middle only)
+  async function addStage(type) {
+    const name = prompt("New stage name");
+    if (!name || !name.trim()) return;
+    await api("stages/create", { method: "POST", body: { name: name.trim(), stage_type: type } });
+    location.reload();
+  }
+
   {% if can_edit %}
   let dragId = null;
-  const list = document.getElementById("middleList");
-  list.querySelectorAll(".middle-row").forEach((row) => {
-    row.addEventListener("dragstart", () => { dragId = row.dataset.id; row.classList.add("opacity-40"); });
-    row.addEventListener("dragend", () => row.classList.remove("opacity-40"));
-    row.addEventListener("dragover", (e) => e.preventDefault());
-    row.addEventListener("drop", async () => {
-      const target = row;
-      const dragging = list.querySelector(`.middle-row[data-id="${dragId}"]`);
-      if (!dragging || dragging === target) return;
-      list.insertBefore(dragging, target);
-      const ids = [...list.querySelectorAll(".middle-row")].map((r) => Number(r.dataset.id));
-      await api("stages/reorder", { method: "POST", body: { ids } });
-      dragId = null;
+  let dragType = null;
+
+  ["entry", "middle", "won", "lost"].forEach((type) => {
+    const list = document.getElementById(`list-${type}`);
+    if (!list) return;
+    list.querySelectorAll(".stage-row").forEach((row) => {
+      row.addEventListener("dragstart", () => { dragId = row.dataset.id; dragType = type; row.classList.add("opacity-40"); });
+      row.addEventListener("dragend", () => row.classList.remove("opacity-40"));
+      row.addEventListener("dragover", (e) => e.preventDefault());
+      row.addEventListener("drop", async () => {
+        if (row.dataset.type !== dragType) return;
+        const dragging = list.querySelector(`.stage-row[data-id="${dragId}"]`);
+        if (!dragging || dragging === row) return;
+        list.insertBefore(dragging, row);
+        const ids = [...list.querySelectorAll(".stage-row")].map((r) => Number(r.dataset.id));
+        await api("stages/reorder", { method: "POST", body: { ids } });
+        dragId = null; dragType = null;
+      });
     });
   });
   {% endif %}

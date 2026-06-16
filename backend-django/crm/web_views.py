@@ -322,14 +322,13 @@ def users_page(request):
 @user_passes_test(_is_admin, login_url="/login")
 def funnel(request):
     stages = list(PipelineStage.objects.all())
-    ctx = {
-        **_base_ctx(request), "active": "funnel",
-        "entry": [s for s in stages if s.stage_type == "entry"],
-        "middle": [s for s in stages if s.stage_type == "middle"],
-        "won": [s for s in stages if s.stage_type == "won"],
-        "lost": [s for s in stages if s.stage_type == "lost"],
-        "can_edit": True,
-    }
+    sections = [
+        ("entry", "Top", [s for s in stages if s.stage_type == "entry"]),
+        ("middle", "Middle", [s for s in stages if s.stage_type == "middle"]),
+        ("won", "Bottom", [s for s in stages if s.stage_type == "won"]),
+        ("lost", "Complete", [s for s in stages if s.stage_type == "lost"]),
+    ]
+    ctx = {**_base_ctx(request), "active": "funnel", "sections": sections, "can_edit": True}
     return render(request, "funnel.html", ctx)
 
 
