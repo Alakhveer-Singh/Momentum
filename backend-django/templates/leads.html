@@ -117,6 +117,22 @@
   {% endif %}
 </div>
 
+<!-- Bulk-select toolbar -->
+<div id="bulkBar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:55;background:#0f172a;color:#fff;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.3);padding:10px 14px;align-items:center;gap:12px;">
+  <span id="bulkCount" style="font-size:13px;font-weight:600;"></span>
+  <span style="width:1px;height:20px;background:#334155;"></span>
+  <span style="font-size:13px;color:#cbd5e1;">Set source:</span>
+  <div style="position:relative;display:inline-block;">
+    <select id="bulkSource" style="appearance:none;-webkit-appearance:none;background:#1e293b;border:1px solid #334155;padding:6px 26px 6px 10px;border-radius:8px;font-size:13px;color:#fff;cursor:pointer;outline:none;">
+      <option value="">Choose…</option>
+      {% for s in sources %}<option value="{{ s }}">{{ s|pretty }}</option>{% endfor %}
+    </select>
+    <span style="position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:#94a3b8;font-size:9px;">▾</span>
+  </div>
+  <button onclick="applyBulkSource()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">Apply</button>
+  <button onclick="clearBulkSelection()" style="background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;">Clear</button>
+</div>
+
 {% include "partials/lead_modal.html" %}
 
 <!-- Lead detail side panel -->
@@ -206,8 +222,13 @@
   function scoreColor(n) { return n>=70?'#16a34a':n>=40?'#d97706':'#dc2626'; }
 
   // Hover preview (0.5s delay, follows mouse) + Click opens side panel
+  // Shift+click selects a range of rows for bulk source change.
   let hoverTimer = null, curX = 0, curY = 0;
-  document.querySelectorAll(".lead-row").forEach(row => {
+  const leadRows = [...document.querySelectorAll(".lead-row")];
+  const selectedLeads = new Set();
+  let lastClickedIndex = null;
+
+  leadRows.forEach((row, idx) => {
     row.addEventListener("mousemove", e => { curX = e.clientX; curY = e.clientY; });
     row.addEventListener("mouseenter", () => {
       hoverTimer = setTimeout(() => loadLeadPreview(row.dataset.id, curX, curY), 500);
@@ -216,12 +237,67 @@
       clearTimeout(hoverTimer);
       document.getElementById("lead-hover-card")?.remove();
     });
-    row.addEventListener("click", () => {
+    row.addEventListener("click", (e) => {
       clearTimeout(hoverTimer);
       document.getElementById("lead-hover-card")?.remove();
-      openLeadPanel(row.dataset.id);
+      if (e.shiftKey) {
+        e.preventDefault();
+        window.getSelection()?.removeAllRanges();
+        if (lastClickedIndex === null) {
+          toggleLeadSelect(idx);
+        } else {
+          const [a, b] = [lastClickedIndex, idx].sort((x, y) => x - y);
+          for (let i = a; i <= b; i++) selectRow(i, true);
+        }
+        lastClickedIndex = idx;
+        renderBulkBar();
+      } else {
+        clearBulkSelection();
+        openLeadPanel(row.dataset.id);
+      }
     });
   });
+
+  function selectRow(idx, on) {
+    const row = leadRows[idx];
+    if (!row) return;
+    const id = row.dataset.id;
+    if (on) { selectedLeads.add(id); row.style.background = "#eef2ff"; row.style.boxShadow = "inset 3px 0 0 #6366f1"; }
+    else { selectedLeads.delete(id); row.style.background = ""; row.style.boxShadow = ""; }
+  }
+
+  function toggleLeadSelect(idx) {
+    const id = leadRows[idx].dataset.id;
+    selectRow(idx, !selectedLeads.has(id));
+  }
+
+  function renderBulkBar() {
+    const bar = document.getElementById("bulkBar");
+    if (selectedLeads.size === 0) { bar.style.display = "none"; return; }
+    document.getElementById("bulkCount").textContent = `${selectedLeads.size} selected`;
+    bar.style.display = "flex";
+  }
+
+  function clearBulkSelection() {
+    selectedLeads.forEach(id => {
+      const row = document.querySelector(`.lead-row[data-id="${id}"]`);
+      if (row) { row.style.background = ""; row.style.boxShadow = ""; }
+    });
+    selectedLeads.clear();
+    lastClickedIndex = null;
+    renderBulkBar();
+  }
+
+  async function applyBulkSource() {
+    const src = document.getElementById("bulkSource").value;
+    if (!src) { alert("Choose a source first."); return; }
+    if (selectedLeads.size === 0) return;
+    const ids = [...selectedLeads];
+    try {
+      await Promise.all(ids.map(id => api(`leads/${id}`, { method: "PUT", body: { source: src } })));
+      location.reload();
+    } catch (err) { alert(err.data?.message || "Bulk update failed."); }
+  }
 
   async function loadLeadPreview(id, mx, my) {
     document.getElementById("lead-hover-card")?.remove();
