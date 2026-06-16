@@ -201,16 +201,19 @@
     ).join('');
 
     // tasks
-    const tasksHTML = (lead.tasks||[]).length ? `
+    const tasksHTML = `
       <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
-        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Follow-ups</div>
-        ${(lead.tasks||[]).map(t=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Follow-ups</div>
+          <button onclick="showAddFollowup(${id},'${(lead.first_name+' '+lead.last_name).trim().replace(/'/g,"\\'")})" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ Add</button>
+        </div>
+        ${(lead.tasks||[]).length ? (lead.tasks||[]).map(t=>`
           <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #f8fafc;">
             <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${t.status==='completed'?'#22c55e':'#f97316'};"></div>
             <div style="flex:1;font-size:13px;color:${t.status==='completed'?'#94a3b8':'#1e293b'};${t.status==='completed'?'text-decoration:line-through;':''};">${t.title}</div>
             ${t.due_at?`<div style="font-size:11px;color:#94a3b8;flex-shrink:0;">${new Date(t.due_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>`:''}
-          </div>`).join('')}
-      </div>` : '';
+          </div>`).join('') : '<div style="font-size:13px;color:#94a3b8;padding:4px 0;">No follow-ups yet.</div>'}
+      </div>`;
 
     // activity timeline (ALL)
     const actHTML = (lead.activities||[]).length
@@ -261,12 +264,8 @@
           <select id="pnl_type" style="appearance:none;-webkit-appearance:none;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;color:#475569;background:#fff;cursor:pointer;outline:none;">
             <option value="call">Call</option><option value="email">Email</option><option value="meeting">Meeting</option><option value="note">Note</option>
           </select>
-          <div style="flex:1;min-width:120px;position:relative;display:flex;align-items:center;">
-            <input id="pnl_subject" placeholder="Subject *" style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelLogActivity(${id})" />
-            <svg style="position:absolute;right:10px;width:16px;height:16px;pointer-events:none;color:#64748b;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </div>
+          <input id="pnl_subject" placeholder="Subject *" style="flex:1;min-width:120px;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelLogActivity(${id})" />
           <button onclick="panelLogActivity(${id})" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Log</button>
-          <button onclick="showAddFollowup(${id})" style="background:#10b981;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Add Follow-up</button>
         </div>
       </div>
 
@@ -303,17 +302,17 @@
     openLeadPanel(leadId);
   }
 
-  function showAddFollowup(leadId) {
+  function showAddFollowup(leadId, leadName) {
     const now = new Date();
     const dueTime = new Date(now.getTime() + 30 * 60000);
-    const dueStr = dueTime.toISOString().slice(0, 16);
-    const title = prompt("Follow-up title:", "Follow up");
-    if (!title || !title.trim()) return;
-    const dueDateInput = prompt("Due date and time (YYYY-MM-DDTHH:mm):", dueStr);
+    const pad = n => String(n).padStart(2, '0');
+    const dueStr = `${dueTime.getFullYear()}-${pad(dueTime.getMonth()+1)}-${pad(dueTime.getDate())}T${pad(dueTime.getHours())}:${pad(dueTime.getMinutes())}`;
+    const dueDateInput = prompt("Due date & time (YYYY-MM-DDTHH:mm):", dueStr);
     if (!dueDateInput) return;
+    const title = `Follow-up: ${leadName}`;
     api("tasks", { method: "POST", body: {
-      lead_id: leadId, title: title.trim(), due_at: dueDateInput, priority: "medium", status: "pending"
-    }}).then(() => openLeadPanel(leadId)).catch(err => alert("Failed to create follow-up: " + (err.data?.message || err.message)));
+      lead_id: leadId, title, due_at: dueDateInput, priority: "medium", status: "pending"
+    }}).then(() => openLeadPanel(leadId)).catch(err => alert("Failed: " + (err.data?.message || err.message)));
   }
 
   function closeLeadPanel() {

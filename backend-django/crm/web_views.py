@@ -319,7 +319,7 @@ def users_page(request):
 
 
 # --- Funnel -----------------------------------------------------------------
-@login_required
+@user_passes_test(_is_admin, login_url="/login")
 def funnel(request):
     stages = list(PipelineStage.objects.all())
     entry = [s for s in stages if s.stage_type == "entry"]
@@ -335,22 +335,20 @@ def funnel(request):
     ctx = {
         **_base_ctx(request), "active": "funnel",
         "sections": sections,
-        "can_edit": request.user.role in ("admin", "manager"),
+        "can_edit": True,
     }
     return render(request, "funnel.html", ctx)
 
 
 # --- Source Master ----------------------------------------------------------
-def _is_admin_or_manager(u):
-    return u.is_authenticated and u.role in ("admin", "manager")
 
 
-@user_passes_test(_is_admin_or_manager, login_url="/login")
+@user_passes_test(_is_admin, login_url="/login")
 def source_master(request):
     ctx = {
         **_base_ctx(request), "active": "sources",
         "sources": SOURCES,
-        "can_edit": request.user.role in ("admin", "manager"),
+        "can_edit": True,
     }
     return render(request, "source_master.html", ctx)
 
