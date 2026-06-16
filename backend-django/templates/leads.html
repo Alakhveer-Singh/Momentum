@@ -63,6 +63,7 @@
           <th class="px-4 py-3">Source</th>
           <th class="px-4 py-3">Stage Funnel</th>
           <th class="px-4 py-3 text-right">Score</th>
+          {% if can_delete %}<th class="px-4 py-3 text-right">Actions</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -90,9 +91,14 @@
             </div>
           </td>
           <td class="px-4 py-3 text-right font-semibold">{{ lead.score }}</td>
+          {% if can_delete %}
+          <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+            <button onclick="deleteLeadRow({{ lead.id }}, '{{ lead.full_name|escapejs }}')" class="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Delete lead"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+          </td>
+          {% endif %}
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">No leads found.</td></tr>
+        <tr><td colspan="{% if can_delete %}6{% else %}5{% endif %}" class="px-4 py-8 text-center text-slate-400">No leads found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -549,6 +555,14 @@
     closeLeadPanel();
   }
   document.getElementById("panelDeleteBtn")?.addEventListener("click", deleteLeadFromPanel);
+
+  async function deleteLeadRow(id, name) {
+    if (!confirm(`Delete lead "${name}"? This cannot be undone.`)) return;
+    try {
+      await api(`leads/${id}`, { method: "DELETE" });
+      document.querySelector(`.lead-row[data-id="${id}"]`)?.remove();
+    } catch (err) { alert(err.data?.message || "Delete failed."); }
+  }
 
   async function changeSource(id, newSource) {
     await api(`leads/${id}`, { method: "PUT", body: { source: newSource } });
