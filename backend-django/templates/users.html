@@ -65,7 +65,7 @@
     } catch (err) { $("u_error").textContent = err.data?.message || "Save failed."; $("u_error").classList.remove("hidden"); }
   });
   async function toggleActive(id, active) {
-    try { await api(`users/${id}`, { method: "PUT", body: { is_active: !active } }); location.reload(); }
+    try { await api(`users/${id}`, { method: "PATCH", body: { is_active: !active } }); location.reload(); }
     catch (err) { alert(err.data?.message || "Update failed."); }
   }
   async function delUser(id, name) {
