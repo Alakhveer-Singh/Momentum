@@ -205,7 +205,7 @@
       <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Follow-ups</div>
-          <button onclick="showAddFollowup(${id},'${(lead.first_name+' '+lead.last_name).trim().replace(/'/g,"\\'")})" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ Add</button>
+          <button onclick="showAddFollowup()" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ Add</button>
         </div>
         ${(lead.tasks||[]).length ? (lead.tasks||[]).map(t=>`
           <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #f8fafc;">
@@ -302,7 +302,10 @@
     openLeadPanel(leadId);
   }
 
-  function showAddFollowup(leadId, leadName) {
+  function showAddFollowup() {
+    const leadId = panelLeadId;
+    if (!leadId) return;
+    const leadName = document.getElementById("panelTitle")?.textContent?.trim() || "Lead";
     const now = new Date();
     const dueTime = new Date(now.getTime() + 30 * 60000);
     const pad = n => String(n).padStart(2, '0');
