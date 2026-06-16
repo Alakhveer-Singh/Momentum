@@ -119,6 +119,46 @@
   <div id="leadPanelContent" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:12px;"></div>
 </div>
 <div id="panelOverlay" class="fixed inset-0 bg-black/40 hidden z-30" onclick="closeLeadPanel()"></div>
+
+<!-- Follow-up modal -->
+<div id="fuOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:60;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px);">
+  <div style="background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.25);width:100%;max-width:360px;overflow:hidden;">
+    <div style="padding:20px 24px 14px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-weight:700;font-size:17px;color:#0f172a;">New Follow-up</div>
+      <div id="fuLeadName" style="font-size:13px;color:#94a3b8;margin-top:2px;"></div>
+    </div>
+
+    <div style="padding:18px 24px;">
+      <!-- Calendar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <button type="button" onclick="fuMonth(-1)" style="background:#f1f5f9;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;line-height:1;">‹</button>
+        <div id="fuMonthLabel" style="font-weight:600;font-size:14px;color:#0f172a;"></div>
+        <button type="button" onclick="fuMonth(1)" style="background:#f1f5f9;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;line-height:1;">›</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px;">
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Su</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Mo</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Tu</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">We</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Th</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Fr</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Sa</div>
+      </div>
+      <div id="fuGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+
+      <!-- Time -->
+      <div style="margin-top:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Time</label>
+        <input id="fuTime" type="time" style="width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;color:#0f172a;outline:none;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'" />
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;padding:14px 24px 18px;border-top:1px solid #f1f5f9;">
+      <button type="button" onclick="closeFollowupModal()" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button type="button" onclick="saveFollowup()" style="flex:1;background:#10b981;color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Create</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block page_js %}
 <script src="{% static 'js/lead_modal.js' %}"></script>
@@ -302,21 +342,76 @@
     openLeadPanel(leadId);
   }
 
+  // --- Follow-up modal with custom calendar -------------------------------
+  const fuPad = n => String(n).padStart(2, '0');
+  let fuViewDate = new Date();   // month being displayed
+  let fuSelected = null;          // selected Date (day only)
+
   function showAddFollowup() {
-    const leadId = panelLeadId;
-    if (!leadId) return;
+    if (!panelLeadId) return;
     const leadName = document.getElementById("panelTitle")?.textContent?.trim() || "Lead";
-    const now = new Date();
-    const dueTime = new Date(now.getTime() + 30 * 60000);
-    const pad = n => String(n).padStart(2, '0');
-    const dueStr = `${dueTime.getFullYear()}-${pad(dueTime.getMonth()+1)}-${pad(dueTime.getDate())}T${pad(dueTime.getHours())}:${pad(dueTime.getMinutes())}`;
-    const dueDateInput = prompt("Due date & time (YYYY-MM-DDTHH:mm):", dueStr);
-    if (!dueDateInput) return;
+    document.getElementById("fuLeadName").textContent = `Follow-up: ${leadName}`;
+    const def = new Date(Date.now() + 30 * 60000);
+    fuViewDate = new Date(def.getFullYear(), def.getMonth(), 1);
+    fuSelected = new Date(def.getFullYear(), def.getMonth(), def.getDate());
+    document.getElementById("fuTime").value = `${fuPad(def.getHours())}:${fuPad(def.getMinutes())}`;
+    renderFuCalendar();
+    document.getElementById("fuOverlay").style.display = "flex";
+  }
+
+  function closeFollowupModal() {
+    document.getElementById("fuOverlay").style.display = "none";
+  }
+
+  function fuMonth(delta) {
+    fuViewDate = new Date(fuViewDate.getFullYear(), fuViewDate.getMonth() + delta, 1);
+    renderFuCalendar();
+  }
+
+  function renderFuCalendar() {
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    document.getElementById("fuMonthLabel").textContent = `${months[fuViewDate.getMonth()]} ${fuViewDate.getFullYear()}`;
+    const year = fuViewDate.getFullYear(), month = fuViewDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date(); today.setHours(0,0,0,0);
+    const grid = document.getElementById("fuGrid");
+    let html = "";
+    for (let i = 0; i < firstDay; i++) html += `<div></div>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cur = new Date(year, month, d);
+      const isSel = fuSelected && cur.getTime() === new Date(fuSelected.getFullYear(), fuSelected.getMonth(), fuSelected.getDate()).getTime();
+      const isToday = cur.getTime() === today.getTime();
+      const isPast = cur < today;
+      let bg = "transparent", color = isPast ? "#cbd5e1" : "#334155", fw = "500", ring = "";
+      if (isSel) { bg = "#6366f1"; color = "#fff"; fw = "700"; }
+      else if (isToday) { ring = "box-shadow:inset 0 0 0 1.5px #c7d2fe;"; color = "#6366f1"; fw = "600"; }
+      const cursor = isPast ? "not-allowed" : "pointer";
+      const onclick = isPast ? "" : `onclick="fuPick(${year},${month},${d})"`;
+      const hover = isPast || isSel ? "" : `onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='${bg}'"`;
+      html += `<div ${onclick} ${hover} style="text-align:center;padding:8px 0;font-size:13px;font-weight:${fw};color:${color};background:${bg};border-radius:8px;cursor:${cursor};${ring}transition:background .12s;">${d}</div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  function fuPick(y, m, d) {
+    fuSelected = new Date(y, m, d);
+    renderFuCalendar();
+  }
+
+  function saveFollowup() {
+    if (!panelLeadId || !fuSelected) return;
+    const time = document.getElementById("fuTime").value || "09:00";
+    const [hh, mm] = time.split(":");
+    const due = `${fuSelected.getFullYear()}-${fuPad(fuSelected.getMonth()+1)}-${fuPad(fuSelected.getDate())}T${hh}:${mm}`;
+    const leadName = document.getElementById("panelTitle")?.textContent?.trim() || "Lead";
     const title = `Follow-up: ${leadName}`;
     const userId = Number(document.querySelector('meta[name="user-id"]')?.content);
+    const leadId = panelLeadId;
     api("tasks", { method: "POST", body: {
-      lead_id: leadId, title, due_at: dueDateInput, priority: "medium", status: "pending", assigned_to: userId
-    }}).then(() => openLeadPanel(leadId)).catch(err => alert("Failed: " + (err.data?.message || err.message)));
+      lead_id: leadId, title, due_at: due, priority: "medium", status: "pending", assigned_to: userId
+    }}).then(() => { closeFollowupModal(); openLeadPanel(leadId); })
+       .catch(err => alert("Failed: " + (err.data?.message || err.message)));
   }
 
   function closeLeadPanel() {
