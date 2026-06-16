@@ -49,6 +49,7 @@ api = [
     # Sources
     path("sources", views.sources_list_view),
     path("sources/create", views.source_create_view),
+    path("sources/reorder", views.source_reorder_view),
     path("sources/<int:pk>", views.source_update_view),
     path("sources/<int:pk>/delete", views.source_delete_view),
     *router.urls,

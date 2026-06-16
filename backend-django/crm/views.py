@@ -731,3 +731,14 @@ def source_delete_view(request, pk):
     source = LeadSource.objects.get(pk=pk)
     source.delete()
     return Response(status=204)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def source_reorder_view(request):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    ids = request.data.get("ids", [])
+    for pos, sid in enumerate(ids, start=1):
+        LeadSource.objects.filter(pk=sid).update(position=pos)
+    return Response({"ok": True})
