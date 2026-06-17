@@ -440,9 +440,14 @@
       <!-- Stage switcher -->
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">${stageButtons}</div>
 
-      <!-- Quick badges -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
-        <span style="background:#f1f5f9;color:#475569;border-radius:20px;padding:3px 10px;font-size:12px;">${pretty(lead.source)}</span>
+      <!-- Quick badges + Source selector -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+        <div style="position:relative;display:inline-block;">
+          <select id="pnl_source" onchange="panelChangeSource(${id})" style="appearance:none;-webkit-appearance:none;background:#f1f5f9;border:none;padding:4px 22px 4px 10px;border-radius:16px;font-size:12px;font-weight:500;color:#475569;cursor:pointer;outline:none;">
+            {% for s in sources %}<option value="{{ s }}" ${lead.source==='{{ s }}'?'selected':''}>{{ s|pretty }}</option>{% endfor %}
+          </select>
+          <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;color:#94a3b8;font-size:9px;">▾</span>
+        </div>
         <span style="background:${scoreColor(lead.score)}18;color:${scoreColor(lead.score)};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">Score ${lead.score}/100</span>
         ${lead.value&&lead.value!=='0.00'?`<span style="background:#eff6ff;color:#3b82f6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">₹${Number(lead.value).toLocaleString('en-IN')}</span>`:''}
       </div>
@@ -482,6 +487,13 @@
       </div>
     `;
     lucide.createIcons();
+  }
+
+  async function panelChangeSource(leadId) {
+    const src = document.getElementById("pnl_source").value;
+    await api(`leads/${leadId}`, { method: "PUT", body: { source: src } });
+    document.querySelector(`.lead-row[data-id="${leadId}"]`)?.remove();
+    closeLeadPanel();
   }
 
   async function panelChangeStage(leadId, stageId) {
