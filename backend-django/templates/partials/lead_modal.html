@@ -9,7 +9,16 @@
       </div>
       <div>
         <label class="lm-label">Mobile No. <span class="text-red-500">*</span></label>
-        <input id="lm_phone" required type="tel" class="lm-inp" placeholder="+91 9876543210" />
+        <input id="lm_phone" required type="tel" class="lm-inp" placeholder="9876543210" oninput="lmDetectPhone(this.value)" />
+        <div id="lm_phone_detect" class="mt-1.5 flex flex-wrap items-center gap-2 text-xs" style="display:none;">
+          <span id="lm_phone_flag" style="font-size:16px;line-height:1;"></span>
+          <span id="lm_phone_country" class="font-medium text-slate-600"></span>
+          <span class="text-slate-400">→</span>
+          <span id="lm_phone_formatted" class="font-mono font-semibold text-slate-800"></span>
+          <select id="lm_phone_override" onchange="lmOverridePhone(this.value)" class="ml-auto rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-500">
+            <option value="">Auto-detect</option>
+          </select>
+        </div>
         <div id="lm_extra_phones" class="space-y-2"></div>
         <button type="button" onclick="lmAddPhone()" class="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"><i data-lucide="plus" class="h-3 w-3"></i> Add another number</button>
       </div>
