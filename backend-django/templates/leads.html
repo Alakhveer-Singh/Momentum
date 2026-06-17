@@ -510,10 +510,7 @@
       if (label) label.textContent = `${checked.length} sources`;
     }
     const src = checked[0].value;
-    api(`leads/${leadId}`, { method: "PUT", body: { source: src } }).then(() => {
-      document.querySelector(`.lead-row[data-id="${leadId}"]`)?.remove();
-      closeLeadPanel();
-    });
+    api(`leads/${leadId}`, { method: "PUT", body: { source: src } });
   }
   document.addEventListener("click", (e) => {
     const menu = document.getElementById("pnl_source_menu");
