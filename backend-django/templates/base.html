@@ -29,11 +29,16 @@
       <a href="/templates" class="{{ cls }} {% if active == 'templates' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="mail" class="h-5 w-5"></i> Email Templates</a>
       <a href="/reports" class="{{ cls }} {% if active == 'reports' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="trending-up" class="h-5 w-5"></i> Reports</a>
       {% if me.role == 'admin' %}
-      <a href="/funnel" class="{{ cls }} {% if active == 'funnel' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="filter" class="h-5 w-5"></i> Lead Funnel</a>
-      <a href="/sources" class="{{ cls }} {% if active == 'sources' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="tag" class="h-5 w-5"></i> Source Master</a>
-      <a href="/products" class="{{ cls }} {% if active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="package" class="h-5 w-5"></i> Products &amp; Services</a>
-      {% endif %}
-      {% if me.role == 'admin' %}
+      <button type="button" onclick="toggleMastersGroup()" class="{{ cls }} w-full justify-between {% if active == 'masters' or active == 'funnel' or active == 'sources' or active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}">
+        <span class="flex items-center gap-3"><i data-lucide="folder-cog" class="h-5 w-5"></i> SuperAdmin Masters</span>
+        <i data-lucide="chevron-down" id="mastersChevron" class="h-4 w-4 transition-transform"></i>
+      </button>
+      <div id="mastersGroup" class="ml-3 space-y-1 border-l border-slate-700 pl-3">
+        <a href="/funnel" class="{{ cls }} {% if active == 'funnel' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="filter" class="h-4 w-4"></i> Lead Funnel</a>
+        <a href="/sources" class="{{ cls }} {% if active == 'sources' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="tag" class="h-4 w-4"></i> Source Master</a>
+        <a href="/products" class="{{ cls }} {% if active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="package" class="h-4 w-4"></i> Products &amp; Services</a>
+        <a href="/masters/profiles" class="{{ cls }} {% if active == 'masters' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="user-cog" class="h-4 w-4"></i> Customer Profile</a>
+      </div>
       <a href="/users" class="{{ cls }} {% if active == 'users' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="shield-check" class="h-5 w-5"></i> Team &amp; Roles</a>
       {% endif %}
       {% endwith %}
@@ -86,6 +91,26 @@
 </div>
 <script src="{% static 'js/app.js' %}"></script>
 {% block page_js %}{% endblock %}
+<script>
+  function toggleMastersGroup() {
+    const g = document.getElementById("mastersGroup");
+    const c = document.getElementById("mastersChevron");
+    if (!g) return;
+    const open = g.style.display !== "none";
+    g.style.display = open ? "none" : "block";
+    if (c) c.style.transform = open ? "rotate(-90deg)" : "rotate(0deg)";
+  }
+  (function () {
+    const active = "{{ active }}";
+    const masterPages = ["masters", "funnel", "sources", "products"];
+    const g = document.getElementById("mastersGroup");
+    const c = document.getElementById("mastersChevron");
+    if (g && !masterPages.includes(active)) {
+      g.style.display = "none";
+      if (c) c.style.transform = "rotate(-90deg)";
+    }
+  })();
+</script>
 <script>lucide.createIcons();</script>
 </body>
 </html>

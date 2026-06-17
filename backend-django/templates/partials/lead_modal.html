@@ -120,9 +120,9 @@
           {% for p in products %}<option value="{{ p.id }}">{{ p.name }} ({{ p.get_kind_display }})</option>{% endfor %}</select>
       </div>
       <div>
-        <label class="lm-label">Current Profile <span class="text-red-500">*</span></label>
-        <select id="lm_current_profile" required class="lm-inp lm-select"><option value="">Select profile…</option>
-          <option>Student</option><option>Fresher</option><option>Working Professional</option><option>Business Owner</option><option>Home Maker</option></select>
+        <label class="lm-label">Current Profile</label>
+        <select id="lm_current_profile" class="lm-inp lm-select"><option value="">Select profile…</option>
+          {% for p in profiles %}<option value="{{ p.name }}">{{ p.name }}</option>{% endfor %}</select>
       </div>
       <div>
         <label class="lm-label">Highest Education</label>

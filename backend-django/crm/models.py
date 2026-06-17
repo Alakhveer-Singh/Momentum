@@ -83,6 +83,19 @@ class Product(models.Model):
         return self.name
 
 
+class CustomerProfile(models.Model):
+    name = models.CharField(max_length=120)
+    position = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "name"]
+
+    def __str__(self):
+        return self.name
+
+
 class CustomFieldDefinition(models.Model):
     class FieldType(models.TextChoices):
         TEXT = "text"

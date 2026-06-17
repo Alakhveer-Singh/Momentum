@@ -18,7 +18,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Activity, EmailTemplate, Lead, LeadSource, LoginActivity, PipelineStage, Product, Task, User
+from .models import Activity, CustomerProfile, EmailTemplate, Lead, LeadSource, LoginActivity, PipelineStage, Product, Task, User
 
 SOURCES = [
     "web_form", "referral", "google_ads", "facebook_ads",
@@ -185,6 +185,7 @@ def leads(request):
         "search": search, "selected_sources": selected_sources, "tab": tab, "sources": SOURCES,
         "date_from": date_from, "date_to": date_to,
         "products": Product.objects.filter(is_active=True),
+        "profiles": CustomerProfile.objects.filter(is_active=True),
         "users": User.objects.filter(is_active=True) if user.role != "rep" else [],
         "can_assign": user.role != "rep",
         "can_delete": user.is_manager_or_admin,
@@ -354,6 +355,21 @@ def products_page(request):
         "products": Product.objects.all(),
     }
     return render(request, "products.html", ctx)
+
+
+@user_passes_test(_is_admin, login_url="/login")
+def masters_hub(request):
+    ctx = {**_base_ctx(request), "active": "masters"}
+    return render(request, "masters_hub.html", ctx)
+
+
+@user_passes_test(_is_admin, login_url="/login")
+def customer_profiles_page(request):
+    ctx = {
+        **_base_ctx(request), "active": "masters",
+        "profiles": CustomerProfile.objects.all(),
+    }
+    return render(request, "customer_profiles.html", ctx)
 
 
 # --- Profile ----------------------------------------------------------------

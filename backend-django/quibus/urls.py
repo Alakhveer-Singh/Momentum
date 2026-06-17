@@ -57,6 +57,12 @@ api = [
     path("products/create", views.product_create_view),
     path("products/<int:pk>", views.product_update_view),
     path("products/<int:pk>/delete", views.product_delete_view),
+    # Customer profiles
+    path("profiles", views.profiles_list_view),
+    path("profiles/create", views.profile_create_view),
+    path("profiles/reorder", views.profile_reorder_view),
+    path("profiles/<int:pk>", views.profile_update_view),
+    path("profiles/<int:pk>/delete", views.profile_delete_view),
     # Bulk lead actions (must precede router's leads/<pk> route)
     path("leads/bulk-assign", views.leads_bulk_assign_view),
     path("leads/bulk-delete", views.leads_bulk_delete_view),
@@ -77,6 +83,8 @@ web = [
     path("funnel", web_views.funnel),
     path("sources", web_views.source_master),
     path("products", web_views.products_page),
+    path("masters", web_views.masters_hub),
+    path("masters/profiles", web_views.customer_profiles_page),
     path("profile", web_views.profile),
 ]
 

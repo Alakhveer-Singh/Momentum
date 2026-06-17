@@ -16,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from . import scoring
 from .models import (
     Activity,
+    CustomerProfile,
     CustomFieldDefinition,
     EmailTemplate,
     Lead,
@@ -849,6 +850,65 @@ def product_delete_view(request, pk):
         return Response({"detail": "Forbidden"}, status=403)
     Product.objects.filter(pk=pk).delete()
     return Response(status=204)
+
+
+# --- Customer Profiles -------------------------------------------------------
+def _profile_json(p):
+    return {"id": p.id, "name": p.name, "position": p.position, "is_active": p.is_active}
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def profiles_list_view(request):
+    qs = CustomerProfile.objects.all()
+    if request.query_params.get("active") == "1":
+        qs = qs.filter(is_active=True)
+    return Response([_profile_json(p) for p in qs])
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def profile_create_view(request):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    name = (request.data.get("name") or "").strip()
+    if not name:
+        return Response({"detail": "Name required"}, status=400)
+    p = CustomerProfile.objects.create(name=name, position=CustomerProfile.objects.count())
+    return Response(_profile_json(p), status=201)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def profile_update_view(request, pk):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    p = CustomerProfile.objects.get(pk=pk)
+    if "name" in request.data and request.data["name"].strip():
+        p.name = request.data["name"].strip()
+    if "is_active" in request.data:
+        p.is_active = bool(request.data["is_active"])
+    p.save()
+    return Response(_profile_json(p))
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def profile_delete_view(request, pk):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    CustomerProfile.objects.filter(pk=pk).delete()
+    return Response(status=204)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def profile_reorder_view(request):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    for pos, pid in enumerate(request.data.get("ids", []), start=1):
+        CustomerProfile.objects.filter(pk=pid).update(position=pos)
+    return Response({"ok": True})
 
 
 # --- Bulk lead actions -------------------------------------------------------

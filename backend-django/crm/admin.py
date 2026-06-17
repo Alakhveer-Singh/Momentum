@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .models import (
     Activity,
+    CustomerProfile,
     CustomFieldDefinition,
     EmailTemplate,
     Lead,
@@ -98,6 +99,12 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ("name", "kind", "is_active", "position")
     list_filter = ("kind", "is_active")
     search_fields = ("name",)
+    list_editable = ("position", "is_active")
+
+
+@admin.register(CustomerProfile)
+class CustomerProfileAdmin(admin.ModelAdmin):
+    list_display = ("name", "position", "is_active")
     list_editable = ("position", "is_active")
 
 
