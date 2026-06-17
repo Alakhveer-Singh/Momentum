@@ -64,6 +64,25 @@ class LeadSource(models.Model):
         return self.label
 
 
+class Product(models.Model):
+    KIND_PRODUCT = "product"
+    KIND_SERVICE = "service"
+    KIND_CHOICES = [(KIND_PRODUCT, "Product"), (KIND_SERVICE, "Service")]
+
+    name = models.CharField(max_length=200)
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_PRODUCT)
+    description = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "name"]
+
+    def __str__(self):
+        return self.name
+
+
 class CustomFieldDefinition(models.Model):
     class FieldType(models.TextChoices):
         TEXT = "text"
@@ -86,6 +105,7 @@ class Lead(models.Model):
     company = models.CharField(max_length=255, blank=True, default="")
     job_title = models.CharField(max_length=255, blank=True, default="")
     source = models.CharField(max_length=50, default="manual", db_index=True)
+    product = models.ForeignKey("Product", null=True, blank=True, on_delete=models.SET_NULL, related_name="leads")
     stage = models.ForeignKey(PipelineStage, on_delete=models.PROTECT, related_name="leads")
     owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="leads")
     score = models.PositiveIntegerField(default=0)

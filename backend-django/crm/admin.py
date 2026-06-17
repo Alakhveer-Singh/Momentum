@@ -9,6 +9,7 @@ from .models import (
     LoginActivity,
     Notification,
     PipelineStage,
+    Product,
     Task,
     User,
 )
@@ -90,6 +91,14 @@ class LoginActivityAdmin(admin.ModelAdmin):
     search_fields = ("email", "user__email")
     readonly_fields = ("email", "ip_address", "user_agent", "success", "reason", "created_at")
     date_hierarchy = "created_at"
+
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ("name", "kind", "is_active", "position")
+    list_filter = ("kind", "is_active")
+    search_fields = ("name",)
+    list_editable = ("position", "is_active")
 
 
 admin.site.register(CustomFieldDefinition)

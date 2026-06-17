@@ -70,6 +70,7 @@ $("leadForm").addEventListener("submit", async (e) => {
     phone: $("lm_phone").value, source: $("lm_source").value, custom_fields: cf,
   };
   if ($("lm_email").value) payload.email = $("lm_email").value;
+  if ($("lm_product_id").value) payload.product_id = Number($("lm_product_id").value);
   if ($("lm_stage_id").value) payload.stage_id = Number($("lm_stage_id").value);
   if ($("lm_owner_id") && $("lm_owner_id").value) payload.owner_id = Number($("lm_owner_id").value);
   const id = $("lm_id").value;

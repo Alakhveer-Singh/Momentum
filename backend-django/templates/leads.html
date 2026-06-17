@@ -18,17 +18,31 @@
     </div>
   </div>
 
-  <form method="get" id="filterForm" class="flex flex-wrap gap-2">
+  <form method="get" id="filterForm" class="flex flex-wrap items-center gap-2">
     <input type="hidden" name="tab" value="{{ tab }}" />
     <div class="relative">
       <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
       <input name="search" value="{{ search }}" placeholder="Search name, email…"
              class="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none" />
     </div>
-    <select name="source" onchange="this.form.submit()" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-      <option value="">All sources</option>
-      {% for s in sources %}<option value="{{ s }}" {% if s == source %}selected{% endif %}>{{ s|pretty }}</option>{% endfor %}
-    </select>
+
+    <!-- Multi-source filter -->
+    <div class="relative">
+      <button type="button" onclick="toggleSourceMenu(event)" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+        <i data-lucide="layers" class="h-4 w-4 text-slate-400"></i>
+        <span id="sourceFilterLabel" class="text-slate-600">{% if selected_sources %}{{ selected_sources|length }} source{{ selected_sources|length|pluralize }}{% else %}All sources{% endif %}</span>
+        <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-slate-400"></i>
+      </button>
+      <div id="sourceMenu" class="absolute left-0 z-30 mt-1 hidden w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+        {% for s in sources %}
+        <label class="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+          <input type="checkbox" name="source" value="{{ s }}" onchange="document.getElementById('filterForm').submit()" {% if s in selected_sources %}checked{% endif %} class="rounded border-slate-300 text-indigo-600" />
+          {{ s|pretty }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
     <input type="hidden" name="date_from" id="date_from_val" value="{{ date_from }}" />
     <button type="button" onclick="openFilterCal('from', this)" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
       <i data-lucide="calendar" class="h-4 w-4 text-slate-400"></i>
@@ -39,18 +53,37 @@
       <i data-lucide="calendar" class="h-4 w-4 text-slate-400"></i>
       <span id="date_to_label" class="text-slate-600">To date</span>
     </button>
+
+    {% if can_assign or can_delete %}
+    <div class="ml-auto flex items-center gap-2">
+      <span id="bulkCount" class="text-xs font-medium text-slate-400"></span>
+      {% if can_assign %}
+      <select id="bulkOwner" disabled class="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50">
+        <option value="">Assign to…</option>
+        {% for u in users %}<option value="{{ u.id }}">{{ u.name }} — {{ u.get_role_display }}</option>{% endfor %}
+        <option value="0">Unassign</option>
+      </select>
+      <button type="button" id="bulkAssignBtn" onclick="bulkAssign()" disabled class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">Assign</button>
+      {% endif %}
+      {% if can_delete %}
+      <button type="button" id="bulkDeleteBtn" onclick="bulkDelete()" disabled class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:opacity-60"><i data-lucide="trash-2" class="h-4 w-4"></i> Delete</button>
+      {% endif %}
+    </div>
+    {% endif %}
   </form>
 
   <!-- Stage tabs -->
   <div class="flex items-center gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
-    {% with base="?search="|add:search|add:"&source="|add:source %}
-    <a href="{{ base }}&tab=" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if not tab %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">All</a>
+    {% with srcq=selected_sources|join:"&source=" %}
+    {% with base="?search="|add:search %}
+    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}&tab=" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if not tab %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">All</a>
     <span class="mx-2 h-5 w-px shrink-0 bg-slate-300"></span>
-    <a href="{{ base }}&tab=unread" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == 'unread' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">Unread <span class="text-xs text-slate-400">{{ unread_count }}</span></a>
+    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}&tab=unread" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == 'unread' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">Unread <span class="text-xs text-slate-400">{{ unread_count }}</span></a>
     {% for s in stages %}
     <i data-lucide="chevron-right" class="mx-0.5 h-3 w-3 shrink-0 text-slate-400"></i>
-    <a href="{{ base }}&tab={{ s.id }}" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == s.id|stringformat:'s' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">{{ s.name }} <span class="text-xs text-slate-400">{{ stage_counts|get:s.id }}</span></a>
+    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}&tab={{ s.id }}" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == s.id|stringformat:'s' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">{{ s.name }} <span class="text-xs text-slate-400">{{ stage_counts|get:s.id }}</span></a>
     {% endfor %}
+    {% endwith %}
     {% endwith %}
   </div>
 
@@ -58,19 +91,24 @@
     <table class="w-full text-sm">
       <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
         <tr>
+          {% if can_assign or can_delete %}<th class="px-4 py-3"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" class="rounded border-slate-300 text-indigo-600" /></th>{% endif %}
           <th class="px-4 py-3">Name</th>
           <th class="px-4 py-3">Phone</th>
           <th class="px-4 py-3">Source</th>
           <th class="px-4 py-3">Stage Funnel</th>
           <th class="px-4 py-3 text-right">Score</th>
-          {% if can_delete %}<th class="px-4 py-3 text-right">Actions</th>{% endif %}
         </tr>
       </thead>
       <tbody>
         {% for lead in page_obj %}
         <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer lead-row" data-id="{{ lead.id }}">
+          {% if can_assign or can_delete %}
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="lead-check rounded border-slate-300 text-indigo-600" value="{{ lead.id }}" onchange="onLeadCheck()" />
+          </td>
+          {% endif %}
           <td class="px-4 py-3">
-            <div class="font-medium text-indigo-600">{{ lead.full_name }}</div>
+            <div class="lead-name inline-block font-medium text-indigo-600" data-id="{{ lead.id }}">{{ lead.full_name }}</div>
             <div class="text-xs text-slate-400">{{ lead.custom_fields.current_profile|default:lead.job_title|default:"—" }}</div>
           </td>
           <td class="px-4 py-3">{{ lead.phone|default:"—" }}</td>
@@ -91,14 +129,9 @@
             </div>
           </td>
           <td class="px-4 py-3 text-right font-semibold">{{ lead.score }}</td>
-          {% if can_delete %}
-          <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
-            <button onclick="deleteLeadRow({{ lead.id }}, '{{ lead.full_name|escapejs }}')" class="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Delete lead"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
-          </td>
-          {% endif %}
         </tr>
         {% empty %}
-        <tr><td colspan="{% if can_delete %}6{% else %}5{% endif %}" class="px-4 py-8 text-center text-slate-400">No leads found.</td></tr>
+        <tr><td colspan="{% if can_assign or can_delete %}6{% else %}5{% endif %}" class="px-4 py-8 text-center text-slate-400">No leads found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -108,29 +141,13 @@
   <div class="flex items-center justify-between text-sm">
     <span class="text-slate-500">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
     <div class="flex gap-2">
-      {% with q="&search="|add:search|add:"&source="|add:source|add:"&tab="|add:tab %}
+      {% with q="&search="|add:search|add:"&tab="|add:tab %}
       <a href="?page={{ page_obj.previous_page_number }}{{ q }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 {% if not page_obj.has_previous %}pointer-events-none opacity-40{% endif %}">Previous</a>
       <a href="?page={{ page_obj.next_page_number }}{{ q }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 {% if not page_obj.has_next %}pointer-events-none opacity-40{% endif %}">Next</a>
       {% endwith %}
     </div>
   </div>
   {% endif %}
-</div>
-
-<!-- Bulk-select toolbar -->
-<div id="bulkBar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:55;background:#0f172a;color:#fff;border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.3);padding:10px 14px;align-items:center;gap:12px;">
-  <span id="bulkCount" style="font-size:13px;font-weight:600;"></span>
-  <span style="width:1px;height:20px;background:#334155;"></span>
-  <span style="font-size:13px;color:#cbd5e1;">Set source:</span>
-  <div style="position:relative;display:inline-block;">
-    <select id="bulkSource" style="appearance:none;-webkit-appearance:none;background:#1e293b;border:1px solid #334155;padding:6px 26px 6px 10px;border-radius:8px;font-size:13px;color:#fff;cursor:pointer;outline:none;">
-      <option value="">Choose…</option>
-      {% for s in sources %}<option value="{{ s }}">{{ s|pretty }}</option>{% endfor %}
-    </select>
-    <span style="position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:#94a3b8;font-size:9px;">▾</span>
-  </div>
-  <button onclick="applyBulkSource()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">Apply</button>
-  <button onclick="clearBulkSelection()" style="background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;">Clear</button>
 </div>
 
 {% include "partials/lead_modal.html" %}
@@ -221,83 +238,80 @@
   function pretty(s) { return (s||'').replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()); }
   function scoreColor(n) { return n>=70?'#16a34a':n>=40?'#d97706':'#dc2626'; }
 
-  // Hover preview (0.5s delay, follows mouse) + Click opens side panel
-  // Shift+click selects a range of rows for bulk source change.
+  // Row click opens side panel; hover preview only over the lead NAME.
   let hoverTimer = null, curX = 0, curY = 0;
-  const leadRows = [...document.querySelectorAll(".lead-row")];
-  const selectedLeads = new Set();
-  let lastClickedIndex = null;
-
-  leadRows.forEach((row, idx) => {
-    row.addEventListener("mousemove", e => { curX = e.clientX; curY = e.clientY; });
-    row.addEventListener("mouseenter", () => {
-      hoverTimer = setTimeout(() => loadLeadPreview(row.dataset.id, curX, curY), 500);
+  document.querySelectorAll(".lead-row").forEach(row => {
+    row.addEventListener("click", () => {
+      document.getElementById("lead-hover-card")?.remove();
+      openLeadPanel(row.dataset.id);
     });
-    row.addEventListener("mouseleave", () => {
+  });
+  document.querySelectorAll(".lead-name").forEach(nameEl => {
+    nameEl.addEventListener("mousemove", e => { curX = e.clientX; curY = e.clientY; });
+    nameEl.addEventListener("mouseenter", () => {
+      hoverTimer = setTimeout(() => loadLeadPreview(nameEl.dataset.id, curX, curY), 500);
+    });
+    nameEl.addEventListener("mouseleave", () => {
       clearTimeout(hoverTimer);
       document.getElementById("lead-hover-card")?.remove();
-    });
-    row.addEventListener("click", (e) => {
-      clearTimeout(hoverTimer);
-      document.getElementById("lead-hover-card")?.remove();
-      if (e.shiftKey) {
-        e.preventDefault();
-        window.getSelection()?.removeAllRanges();
-        if (lastClickedIndex === null) {
-          toggleLeadSelect(idx);
-        } else {
-          const [a, b] = [lastClickedIndex, idx].sort((x, y) => x - y);
-          for (let i = a; i <= b; i++) selectRow(i, true);
-        }
-        lastClickedIndex = idx;
-        renderBulkBar();
-      } else {
-        clearBulkSelection();
-        openLeadPanel(row.dataset.id);
-      }
     });
   });
 
-  function selectRow(idx, on) {
-    const row = leadRows[idx];
-    if (!row) return;
-    const id = row.dataset.id;
-    if (on) { selectedLeads.add(id); row.style.background = "#eef2ff"; row.style.boxShadow = "inset 3px 0 0 #6366f1"; }
-    else { selectedLeads.delete(id); row.style.background = ""; row.style.boxShadow = ""; }
+  // --- Checkbox selection -> top Assign/Delete toolbar --------------------
+  function selectedLeadIds() {
+    return [...document.querySelectorAll(".lead-check:checked")].map(c => c.value);
   }
-
-  function toggleLeadSelect(idx) {
-    const id = leadRows[idx].dataset.id;
-    selectRow(idx, !selectedLeads.has(id));
+  function onLeadCheck() {
+    const ids = selectedLeadIds();
+    const n = ids.length;
+    const count = document.getElementById("bulkCount");
+    if (count) count.textContent = n ? `${n} selected` : "";
+    const owner = document.getElementById("bulkOwner");
+    const assign = document.getElementById("bulkAssignBtn");
+    const del = document.getElementById("bulkDeleteBtn");
+    if (owner) owner.disabled = n === 0;
+    if (assign) assign.disabled = n === 0;
+    if (del) del.disabled = n === 0;
+    const all = document.getElementById("selectAll");
+    const boxes = document.querySelectorAll(".lead-check");
+    if (all) all.checked = boxes.length > 0 && n === boxes.length;
   }
-
-  function renderBulkBar() {
-    const bar = document.getElementById("bulkBar");
-    if (selectedLeads.size === 0) { bar.style.display = "none"; return; }
-    document.getElementById("bulkCount").textContent = `${selectedLeads.size} selected`;
-    bar.style.display = "flex";
+  function toggleSelectAll(box) {
+    document.querySelectorAll(".lead-check").forEach(c => { c.checked = box.checked; });
+    onLeadCheck();
   }
-
-  function clearBulkSelection() {
-    selectedLeads.forEach(id => {
-      const row = document.querySelector(`.lead-row[data-id="${id}"]`);
-      if (row) { row.style.background = ""; row.style.boxShadow = ""; }
-    });
-    selectedLeads.clear();
-    lastClickedIndex = null;
-    renderBulkBar();
-  }
-
-  async function applyBulkSource() {
-    const src = document.getElementById("bulkSource").value;
-    if (!src) { alert("Choose a source first."); return; }
-    if (selectedLeads.size === 0) return;
-    const ids = [...selectedLeads];
+  async function bulkAssign() {
+    const ids = selectedLeadIds();
+    if (!ids.length) return;
+    const val = document.getElementById("bulkOwner").value;
+    if (val === "") { alert("Pick who to assign to."); return; }
+    const owner_id = val === "0" ? null : Number(val);
     try {
-      await Promise.all(ids.map(id => api(`leads/${id}`, { method: "PUT", body: { source: src } })));
+      await api("leads/bulk-assign", { method: "POST", body: { ids, owner_id } });
       location.reload();
-    } catch (err) { alert(err.data?.message || "Bulk update failed."); }
+    } catch (err) { alert(err.data?.detail || "Assign failed."); }
   }
+  async function bulkDelete() {
+    const ids = selectedLeadIds();
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} lead${ids.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    try {
+      await api("leads/bulk-delete", { method: "POST", body: { ids } });
+      location.reload();
+    } catch (err) { alert(err.data?.detail || "Delete failed."); }
+  }
+
+  // Multi-source filter dropdown toggle
+  function toggleSourceMenu(e) {
+    e.stopPropagation();
+    document.getElementById("sourceMenu").classList.toggle("hidden");
+  }
+  document.addEventListener("click", (e) => {
+    const menu = document.getElementById("sourceMenu");
+    if (menu && !menu.classList.contains("hidden") && !menu.contains(e.target) && !e.target.closest("[onclick^='toggleSourceMenu']")) {
+      menu.classList.add("hidden");
+    }
+  });
 
   async function loadLeadPreview(id, mx, my) {
     document.getElementById("lead-hover-card")?.remove();

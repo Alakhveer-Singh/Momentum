@@ -1,3 +1,18 @@
+<style>
+  .lm-select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    padding-right: 2.25rem;
+    color: #0f172a;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .lm-select:invalid { color: #94a3b8; font-weight: 400; }
+  .lm-select option { color: #0f172a; font-weight: 500; }
+</style>
 <div id="leadModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
   <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onclick="event.stopPropagation()">
     <h2 id="leadModalTitle" class="mb-5 text-lg font-bold">New Lead</h2>
@@ -19,39 +34,51 @@
         <input id="lm_whatsapp" type="tel" class="lm-inp" placeholder="+91 9876543210" />
       </div>
       <div><label class="lm-label">Email Id</label><input id="lm_email" type="email" class="lm-inp" placeholder="email@example.com" /></div>
+      <div>
+        <label class="lm-label">Preferred contact</label>
+        <select id="lm_preferred_contact" class="lm-inp lm-select">
+          <option value="whatsapp">WhatsApp</option>
+          <option value="email">Email</option>
+        </select>
+      </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="lm-label">City <span class="text-red-500">*</span></label><input id="lm_city" required class="lm-inp" placeholder="e.g. Mumbai" /></div>
         <div><label class="lm-label">Location</label><input id="lm_location" class="lm-inp" placeholder="Area / Locality" /></div>
       </div>
       <div>
+        <label class="lm-label">Product / Service <span class="text-red-500">*</span></label>
+        <select id="lm_product_id" required class="lm-inp lm-select"><option value="">Select product or service…</option>
+          {% for p in products %}<option value="{{ p.id }}">{{ p.name }} ({{ p.get_kind_display }})</option>{% endfor %}</select>
+      </div>
+      <div>
         <label class="lm-label">Current Profile <span class="text-red-500">*</span></label>
-        <select id="lm_current_profile" required class="lm-inp"><option value="">Select profile…</option>
+        <select id="lm_current_profile" required class="lm-inp lm-select"><option value="">Select profile…</option>
           <option>Student</option><option>Fresher</option><option>Working Professional</option><option>Business Owner</option><option>Home Maker</option></select>
       </div>
       <div>
         <label class="lm-label">Highest Education</label>
-        <select id="lm_highest_education" class="lm-inp"><option value="">Select education…</option>
+        <select id="lm_highest_education" class="lm-inp lm-select"><option value="">Select education…</option>
           <option>XII</option><option>UnderGraduate</option><option>Graduate</option><option>Post Graduate</option><option>PHD</option></select>
       </div>
       <div><label class="lm-label">Notes</label><textarea id="lm_notes" rows="3" class="lm-inp" placeholder="Any additional notes…"></textarea></div>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="lm-label">Source <span class="text-red-500">*</span></label>
-          <select id="lm_source" required class="lm-inp"><option value="">Select source…</option>
+          <select id="lm_source" required class="lm-inp lm-select"><option value="">Select source…</option>
             <option value="web_form">Web form</option><option value="referral">Referral</option>
             <option value="google_ads">Google ads</option><option value="facebook_ads">Facebook ads</option>
             <option value="cold_call">Cold call</option></select>
         </div>
         <div>
           <label class="lm-label">Stage <span class="text-red-500">*</span></label>
-          <select id="lm_stage_id" required class="lm-inp"><option value="">Select stage…</option>
+          <select id="lm_stage_id" required class="lm-inp lm-select"><option value="">Select stage…</option>
             {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
         </div>
       </div>
       {% if can_assign %}
       <div>
         <label class="lm-label">Owner</label>
-        <select id="lm_owner_id" class="lm-inp"><option value="">Unassigned</option>
+        <select id="lm_owner_id" class="lm-inp lm-select"><option value="">Unassigned</option>
           {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
       </div>
       {% endif %}

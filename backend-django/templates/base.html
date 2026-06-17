@@ -31,6 +31,7 @@
       {% if me.role == 'admin' %}
       <a href="/funnel" class="{{ cls }} {% if active == 'funnel' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="filter" class="h-5 w-5"></i> Lead Funnel</a>
       <a href="/sources" class="{{ cls }} {% if active == 'sources' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="tag" class="h-5 w-5"></i> Source Master</a>
+      <a href="/products" class="{{ cls }} {% if active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="package" class="h-5 w-5"></i> Products &amp; Services</a>
       {% endif %}
       {% if me.role == 'admin' %}
       <a href="/users" class="{{ cls }} {% if active == 'users' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="shield-check" class="h-5 w-5"></i> Team &amp; Roles</a>

@@ -9,9 +9,16 @@ from .models import (
     Lead,
     Notification,
     PipelineStage,
+    Product,
     Task,
     User,
 )
+
+
+class MiniProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ["id", "name", "kind"]
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -100,12 +107,17 @@ class LeadSerializer(serializers.ModelSerializer):
     )
     activities_count = serializers.IntegerField(read_only=True, required=False)
     tasks_count = serializers.IntegerField(read_only=True, required=False)
+    product = MiniProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        source="product", queryset=Product.objects.all(), required=False, allow_null=True
+    )
 
     class Meta:
         model = Lead
         fields = [
             "id", "first_name", "last_name", "email", "phone", "job_title",
-            "source", "stage", "stage_id", "owner", "owner_id", "score", "value", "notes",
+            "source", "product", "product_id", "stage", "stage_id", "owner", "owner_id",
+            "score", "value", "notes",
             "custom_fields", "lost_reason", "last_activity_at", "converted_at",
             "created_at", "updated_at", "full_name", "activities_count", "tasks_count",
         ]

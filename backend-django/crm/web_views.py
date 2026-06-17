@@ -18,7 +18,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Activity, EmailTemplate, Lead, LeadSource, LoginActivity, PipelineStage, Task, User
+from .models import Activity, EmailTemplate, Lead, LeadSource, LoginActivity, PipelineStage, Product, Task, User
 
 SOURCES = [
     "web_form", "referral", "google_ads", "facebook_ads",
@@ -144,7 +144,7 @@ def leads(request):
         activities_count=Count("activities", distinct=True),
     )
     search = request.GET.get("search", "").strip()
-    source = request.GET.get("source", "")
+    selected_sources = [s for s in request.GET.getlist("source") if s]
     tab = request.GET.get("tab", "")  # '', 'unread', or stage id
     date_from = request.GET.get("date_from", "")
     date_to = request.GET.get("date_to", "")
@@ -153,8 +153,8 @@ def leads(request):
             Q(first_name__icontains=search) | Q(last_name__icontains=search)
             | Q(email__icontains=search)
         )
-    if source:
-        qs = qs.filter(source=source)
+    if selected_sources:
+        qs = qs.filter(source__in=selected_sources)
     if date_from:
         try:
             qs = qs.filter(created_at__gte=timezone.datetime.fromisoformat(date_from).replace(tzinfo=datetime.timezone.utc))
@@ -180,8 +180,9 @@ def leads(request):
     ctx = {
         **_base_ctx(request), "active": "leads", "page_obj": page,
         "stages": stages, "stage_counts": counts, "unread_count": unread_count,
-        "search": search, "source": source, "tab": tab, "sources": SOURCES,
+        "search": search, "selected_sources": selected_sources, "tab": tab, "sources": SOURCES,
         "date_from": date_from, "date_to": date_to,
+        "products": Product.objects.filter(is_active=True),
         "users": User.objects.filter(is_active=True) if user.role != "rep" else [],
         "can_assign": user.role != "rep",
         "can_delete": user.is_manager_or_admin,
@@ -342,6 +343,15 @@ def source_master(request):
         "sources": LeadSource.objects.all(),
     }
     return render(request, "source_master.html", ctx)
+
+
+@user_passes_test(_is_admin, login_url="/login")
+def products_page(request):
+    ctx = {
+        **_base_ctx(request), "active": "products",
+        "products": Product.objects.all(),
+    }
+    return render(request, "products.html", ctx)
 
 
 # --- Profile ----------------------------------------------------------------

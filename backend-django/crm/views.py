@@ -21,6 +21,7 @@ from .models import (
     Lead,
     LeadSource,
     PipelineStage,
+    Product,
     Task,
     User,
 )
@@ -236,7 +237,10 @@ class LeadViewSet(viewsets.ModelViewSet):
             )
         if stage_id := p.get("stage_id"):
             qs = qs.filter(stage_id=stage_id)
-        if source := p.get("source"):
+        sources = p.getlist("source")
+        if len(sources) > 1:
+            qs = qs.filter(source__in=sources)
+        elif source := p.get("source"):
             qs = qs.filter(source=source)
         if owner_id := p.get("owner_id"):
             qs = qs.filter(owner_id=owner_id)
@@ -742,3 +746,82 @@ def source_reorder_view(request):
     for pos, sid in enumerate(ids, start=1):
         LeadSource.objects.filter(pk=sid).update(position=pos)
     return Response({"ok": True})
+
+
+# --- Products & Services -----------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def products_list_view(request):
+    qs = Product.objects.all()
+    if request.query_params.get("active") == "1":
+        qs = qs.filter(is_active=True)
+    return Response([
+        {"id": p.id, "name": p.name, "kind": p.kind, "description": p.description, "is_active": p.is_active}
+        for p in qs
+    ])
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def product_create_view(request):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    name = (request.data.get("name") or "").strip()
+    if not name:
+        return Response({"detail": "Name required"}, status=400)
+    kind = request.data.get("kind") if request.data.get("kind") in ("product", "service") else "product"
+    pos = Product.objects.count()
+    p = Product.objects.create(name=name, kind=kind, description=(request.data.get("description") or "").strip(), position=pos)
+    return Response({"id": p.id, "name": p.name, "kind": p.kind, "description": p.description, "is_active": p.is_active}, status=201)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def product_update_view(request, pk):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    p = Product.objects.get(pk=pk)
+    if "name" in request.data and request.data["name"].strip():
+        p.name = request.data["name"].strip()
+    if request.data.get("kind") in ("product", "service"):
+        p.kind = request.data["kind"]
+    if "description" in request.data:
+        p.description = (request.data["description"] or "").strip()
+    if "is_active" in request.data:
+        p.is_active = bool(request.data["is_active"])
+    p.save()
+    return Response({"id": p.id, "name": p.name, "kind": p.kind, "description": p.description, "is_active": p.is_active})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def product_delete_view(request, pk):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    Product.objects.filter(pk=pk).delete()
+    return Response(status=204)
+
+
+# --- Bulk lead actions -------------------------------------------------------
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def leads_bulk_assign_view(request):
+    if request.user.role == "rep":
+        return Response({"detail": "Forbidden"}, status=403)
+    ids = request.data.get("ids", [])
+    owner_id = request.data.get("owner_id")
+    owner = User.objects.filter(pk=owner_id).first() if owner_id else None
+    if owner_id and not owner:
+        return Response({"detail": "Invalid owner"}, status=400)
+    Lead.objects.filter(pk__in=ids, deleted_at__isnull=True).update(owner=owner)
+    return Response({"updated": len(ids)})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def leads_bulk_delete_view(request):
+    if not request.user.is_manager_or_admin:
+        return Response({"detail": "Forbidden"}, status=403)
+    ids = request.data.get("ids", [])
+    n = Lead.objects.filter(pk__in=ids, deleted_at__isnull=True).update(deleted_at=timezone.now())
+    return Response({"deleted": n})
