@@ -34,16 +34,16 @@
   async function renameProduct(id, btn) {
     const row = btn.closest(".prod-row");
     const span = row.querySelector(".name");
-    const name = prompt("Rename", span.textContent.trim());
-    if (!name || name.trim() === span.textContent.trim()) return;
+    const name = await uiPrompt("Rename", { label: "Name", value: span.textContent.trim() });
+    if (!name || name === span.textContent.trim()) return;
     try {
-      const res = await api(`products/${id}`, { method: "PATCH", body: { name: name.trim() } });
+      const res = await api(`products/${id}`, { method: "PATCH", body: { name } });
       span.textContent = res.name;
     } catch (err) { alert(err.data?.detail || "Rename failed."); }
   }
 
   async function deleteProduct(id, name) {
-    if (!confirm(`Delete "${name}"?`)) return;
+    if (!await uiConfirm("Delete item", `"${name}" will be removed. This cannot be undone.`)) return;
     try {
       await api(`products/${id}/delete`, { method: "DELETE" });
       location.reload();
@@ -51,12 +51,17 @@
   }
 
   async function addProduct() {
-    const name = prompt("New product / service name");
-    if (!name || !name.trim()) return;
-    let kind = prompt("Type — enter 'product' or 'service'", "product");
-    kind = (kind || "product").trim().toLowerCase() === "service" ? "service" : "product";
+    const res = await uiForm({
+      title: "Add product / service",
+      fields: [
+        { name: "name", label: "Name", placeholder: "e.g. UI/UX Design Course", required: true },
+        { name: "kind", label: "Type", type: "select", options: [{ value: "product", label: "Product" }, { value: "service", label: "Service" }], value: "product" },
+      ],
+      confirmText: "Add",
+    });
+    if (!res) return;
     try {
-      await api("products/create", { method: "POST", body: { name: name.trim(), kind } });
+      await api("products/create", { method: "POST", body: { name: res.name, kind: res.kind } });
       location.reload();
     } catch (err) { alert(err.data?.detail || "Failed to add."); }
   }

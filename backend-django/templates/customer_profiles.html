@@ -34,16 +34,16 @@
   async function renameProfile(id, btn) {
     const row = btn.closest(".profile-row");
     const span = row.querySelector(".name");
-    const name = prompt("Rename profile", span.textContent.trim());
-    if (!name || name.trim() === span.textContent.trim()) return;
+    const name = await uiPrompt("Rename profile", { label: "Profile name", value: span.textContent.trim() });
+    if (!name || name === span.textContent.trim()) return;
     try {
-      const res = await api(`profiles/${id}`, { method: "PATCH", body: { name: name.trim() } });
+      const res = await api(`profiles/${id}`, { method: "PATCH", body: { name } });
       span.textContent = res.name;
     } catch (err) { alert(err.data?.detail || "Rename failed."); }
   }
 
   async function deleteProfile(id, name) {
-    if (!confirm(`Delete profile "${name}"?`)) return;
+    if (!await uiConfirm("Delete profile", `"${name}" will be removed. This cannot be undone.`)) return;
     try {
       await api(`profiles/${id}/delete`, { method: "DELETE" });
       location.reload();
@@ -51,10 +51,10 @@
   }
 
   async function addProfile() {
-    const name = prompt("New profile name");
-    if (!name || !name.trim()) return;
+    const name = await uiPrompt("Add profile", { label: "Profile name", placeholder: "e.g. Retiree" });
+    if (!name) return;
     try {
-      await api("profiles/create", { method: "POST", body: { name: name.trim() } });
+      await api("profiles/create", { method: "POST", body: { name } });
       location.reload();
     } catch (err) { alert(err.data?.detail || "Failed to add profile."); }
   }

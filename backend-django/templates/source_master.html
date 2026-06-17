@@ -33,16 +33,16 @@
   async function renameSource(id, btn) {
     const row = btn.closest(".source-row");
     const span = row.querySelector(".name");
-    const name = prompt("Rename source", span.textContent.trim());
-    if (!name || name.trim() === span.textContent.trim()) return;
+    const name = await uiPrompt("Rename source", { label: "Source name", value: span.textContent.trim() });
+    if (!name || name === span.textContent.trim()) return;
     try {
-      const res = await api(`sources/${id}`, { method: "PATCH", body: { label: name.trim() } });
+      const res = await api(`sources/${id}`, { method: "PATCH", body: { label: name } });
       span.textContent = res.label;
     } catch (err) { alert(err.data?.detail || "Rename failed."); }
   }
 
   async function deleteSource(id, label) {
-    if (!confirm(`Delete source "${label}"?`)) return;
+    if (!await uiConfirm("Delete source", `"${label}" will be removed. This cannot be undone.`)) return;
     try {
       await api(`sources/${id}/delete`, { method: "DELETE" });
       location.reload();
@@ -50,10 +50,10 @@
   }
 
   async function addSource() {
-    const name = prompt("New source name");
-    if (!name || !name.trim()) return;
+    const name = await uiPrompt("Add source", { label: "Source name", placeholder: "e.g. Webinar" });
+    if (!name) return;
     try {
-      await api("sources/create", { method: "POST", body: { label: name.trim() } });
+      await api("sources/create", { method: "POST", body: { label: name } });
       location.reload();
     } catch (err) { alert(err.data?.detail || "Failed to add source."); }
   }
