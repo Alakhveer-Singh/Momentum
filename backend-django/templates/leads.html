@@ -442,11 +442,15 @@
 
       <!-- Quick badges + Source selector -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;">
-        <div style="position:relative;display:inline-block;">
-          <select id="pnl_source" onchange="panelChangeSource(${id})" style="appearance:none;-webkit-appearance:none;background:#f1f5f9;border:none;padding:4px 22px 4px 10px;border-radius:16px;font-size:12px;font-weight:500;color:#475569;cursor:pointer;outline:none;">
-            {% for s in sources %}<option value="{{ s }}" ${lead.source==='{{ s }}'?'selected':''}>{{ s|pretty }}</option>{% endfor %}
-          </select>
-          <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;color:#94a3b8;font-size:9px;">▾</span>
+        <div style="position:relative;display:inline-block;flex:0 1 auto;">
+          <button type="button" onclick="togglePanelSourceMenu(event)" style="display:inline-flex;align-items:center;gap:8px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:6px 10px;font-size:12px;font-weight:500;color:#475569;cursor:pointer;transition:all .15s;white-space:nowrap;">
+            <i data-lucide="layers" style="width:14px;height:14px;stroke-width:2.5;flex-shrink:0;"></i>
+            <span id="pnl_source_label">${lead.source.replace(/_/g,' ').replace(/\\b\\w/g,c=>c.toUpperCase())}</span>
+            <i data-lucide="chevron-down" style="width:12px;height:12px;flex-shrink:0;"></i>
+          </button>
+          <div id="pnl_source_menu" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.1);padding:6px;min-width:160px;z-index:50;">
+            {% for s in sources %}<button type="button" onclick="panelSelectSource(${id},'{{ s }}')" style="display:block;width:100%;text-align:left;border:none;background:none;padding:8px 10px;border-radius:6px;font-size:12px;color:#475569;cursor:pointer;transition:background .1s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#6366f1;margin-right:8px;vertical-align:middle;"></span>{{ s|pretty }}</button>{% endfor %}
+          </div>
         </div>
         <span style="background:${scoreColor(lead.score)}18;color:${scoreColor(lead.score)};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">Score ${lead.score}/100</span>
         ${lead.value&&lead.value!=='0.00'?`<span style="background:#eff6ff;color:#3b82f6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">₹${Number(lead.value).toLocaleString('en-IN')}</span>`:''}
@@ -489,6 +493,26 @@
     lucide.createIcons();
   }
 
+  function togglePanelSourceMenu(e) {
+    e.preventDefault();
+    const menu = document.getElementById("pnl_source_menu");
+    if (menu) menu.style.display = menu.style.display === "none" ? "block" : "none";
+  }
+  async function panelSelectSource(leadId, source) {
+    const label = document.getElementById("pnl_source_label");
+    if (label) label.textContent = source.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const menu = document.getElementById("pnl_source_menu");
+    if (menu) menu.style.display = "none";
+    await api(`leads/${leadId}`, { method: "PUT", body: { source } });
+    document.querySelector(`.lead-row[data-id="${leadId}"]`)?.remove();
+    closeLeadPanel();
+  }
+  document.addEventListener("click", (e) => {
+    const menu = document.getElementById("pnl_source_menu");
+    if (menu && menu.style.display !== "none" && !menu.contains(e.target) && !e.target.closest("button[onclick*='togglePanelSourceMenu']")) {
+      menu.style.display = "none";
+    }
+  });
   async function panelChangeSource(leadId) {
     const src = document.getElementById("pnl_source").value;
     await api(`leads/${leadId}`, { method: "PUT", body: { source: src } });
