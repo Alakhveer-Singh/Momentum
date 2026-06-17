@@ -852,6 +852,16 @@ def product_delete_view(request, pk):
     return Response(status=204)
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def product_reorder_view(request):
+    if request.user.role != "admin":
+        return Response({"detail": "Forbidden"}, status=403)
+    for pos, pid in enumerate(request.data.get("ids", []), start=1):
+        Product.objects.filter(pk=pid).update(position=pos)
+    return Response({"ok": True})
+
+
 # --- Customer Profiles -------------------------------------------------------
 def _profile_json(p):
     return {"id": p.id, "name": p.name, "position": p.position, "is_active": p.is_active}

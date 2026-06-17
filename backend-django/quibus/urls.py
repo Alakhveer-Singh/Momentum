@@ -55,6 +55,7 @@ api = [
     # Products & services
     path("products", views.products_list_view),
     path("products/create", views.product_create_view),
+    path("products/reorder", views.product_reorder_view),
     path("products/<int:pk>", views.product_update_view),
     path("products/<int:pk>/delete", views.product_delete_view),
     # Customer profiles
