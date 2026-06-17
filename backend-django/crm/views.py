@@ -42,6 +42,10 @@ from .serializers import (
 )
 
 
+def _pretty(s: str) -> str:
+    return (s or "").replace("_", " ").title()
+
+
 # --- Throttles --------------------------------------------------------------
 class LoginThrottle(ScopedRateThrottle):
     scope = "login"
@@ -272,21 +276,59 @@ class LeadViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         lead = self.get_object()
         old_stage_id = lead.stage_id
+        old_source = lead.source
+        old_owner_id = lead.owner_id
+        old_snapshot = {
+            "first_name": lead.first_name, "last_name": lead.last_name,
+            "email": lead.email, "phone": lead.phone, "value": str(lead.value),
+            "notes": lead.notes, "product_id": lead.product_id,
+        }
         serializer = self.get_serializer(lead, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         lead = serializer.save()
+
+        acts = []
         new_stage_id = lead.stage_id
         if new_stage_id != old_stage_id:
             old_stage = PipelineStage.objects.get(pk=old_stage_id)
             new_stage = lead.stage
-            Activity.objects.create(
+            acts.append(Activity(
                 lead=lead, user=request.user, type="stage_change",
                 subject=f"Stage changed: {old_stage.name} → {new_stage.name}",
                 metadata={"from": old_stage_id, "to": new_stage_id}, occurred_at=timezone.now(),
-            )
-            lead.last_activity_at = timezone.now()
+            ))
             lead.converted_at = timezone.now() if new_stage.is_won else None
-            lead.save(update_fields=["last_activity_at", "converted_at"])
+            lead.save(update_fields=["converted_at"])
+        if lead.source != old_source:
+            acts.append(Activity(
+                lead=lead, user=request.user, type="system",
+                subject=f"Source changed: {_pretty(old_source)} → {_pretty(lead.source)}",
+                metadata={"from": old_source, "to": lead.source}, occurred_at=timezone.now(),
+            ))
+        if lead.owner_id != old_owner_id:
+            new_owner = lead.owner.name if lead.owner_id else "Unassigned"
+            acts.append(Activity(
+                lead=lead, user=request.user, type="system",
+                subject=f"Assigned to {new_owner}",
+                metadata={"from": old_owner_id, "to": lead.owner_id}, occurred_at=timezone.now(),
+            ))
+        new_snapshot = {
+            "first_name": lead.first_name, "last_name": lead.last_name,
+            "email": lead.email, "phone": lead.phone, "value": str(lead.value),
+            "notes": lead.notes, "product_id": lead.product_id,
+        }
+        changed = [k for k, v in old_snapshot.items() if new_snapshot[k] != v]
+        if changed:
+            acts.append(Activity(
+                lead=lead, user=request.user, type="note",
+                subject="Lead details updated",
+                metadata={"fields": changed}, occurred_at=timezone.now(),
+            ))
+
+        if acts:
+            Activity.objects.bulk_create(acts)
+            lead.last_activity_at = timezone.now()
+            lead.save(update_fields=["last_activity_at"])
         scoring.recalculate(lead)
         broadcast_lead(lead, "updated")
         return Response(self.get_serializer(lead).data)
@@ -384,6 +426,13 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         task = serializer.save(created_by=self.request.user)
+        if task.lead_id:
+            due = f" (due {task.due_at:%d %b %Y %H:%M})" if task.due_at else ""
+            Activity.objects.create(
+                lead=task.lead, user=self.request.user, type="task",
+                subject=f"Follow-up scheduled: {task.title}{due}", occurred_at=timezone.now(),
+            )
+            Lead.objects.filter(pk=task.lead_id).update(last_activity_at=timezone.now())
         if task.assigned_to_id != self.request.user.id:
             notify_user(task.assigned_to, {
                 "task_id": task.id, "title": task.title,
@@ -813,8 +862,16 @@ def leads_bulk_assign_view(request):
     owner = User.objects.filter(pk=owner_id).first() if owner_id else None
     if owner_id and not owner:
         return Response({"detail": "Invalid owner"}, status=400)
-    Lead.objects.filter(pk__in=ids, deleted_at__isnull=True).update(owner=owner)
-    return Response({"updated": len(ids)})
+    leads = list(Lead.objects.filter(pk__in=ids, deleted_at__isnull=True))
+    now = timezone.now()
+    Lead.objects.filter(pk__in=[l.pk for l in leads]).update(owner=owner, last_activity_at=now)
+    name = owner.name if owner else "Unassigned"
+    Activity.objects.bulk_create([
+        Activity(lead=l, user=request.user, type="system",
+                 subject=f"Assigned to {name}", occurred_at=now)
+        for l in leads
+    ])
+    return Response({"updated": len(leads)})
 
 
 @api_view(["POST"])

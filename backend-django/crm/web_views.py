@@ -13,7 +13,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Q, Sum
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import Coalesce, TruncMonth
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -169,6 +169,8 @@ def leads(request):
         qs = qs.filter(activities_count=0)
     elif tab:
         qs = qs.filter(stage_id=tab)
+    # Most-recently-active leads first (new + just-touched bubble to top)
+    qs = qs.annotate(recent=Coalesce("last_activity_at", "created_at")).order_by("-recent", "-created_at")
     paginator = Paginator(qs, 25)
     page = paginator.get_page(request.GET.get("page", 1))
 
