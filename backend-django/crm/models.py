@@ -106,6 +106,12 @@ class Lead(models.Model):
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
 
+    def save(self, *args, **kwargs):
+        if self.phone:
+            from .phone_utils import normalize_phone
+            self.phone = normalize_phone(self.phone)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.full_name
 
