@@ -37,7 +37,8 @@ function openLeadModal(lead = null) {
     $("lm_current_profile").value = cf.current_profile || "";
     $("lm_highest_education").value = cf.highest_education || "";
     $("lm_notes").value = cf.notes || lead.notes || "";
-    $("lm_source").value = lead.source || "";
+    $("lm_product_id").value = lead.product_id || "";
+    document.querySelectorAll(".lm-source-check").forEach(cb => { cb.checked = cb.value === lead.source; });
     $("lm_stage_id").value = lead.stage_id || "";
     if ($("lm_owner_id")) $("lm_owner_id").value = lead.owner_id || "";
     $("lm_whatsapp").value = cf.whatsapp || "";
@@ -65,9 +66,17 @@ $("leadForm").addEventListener("submit", async (e) => {
   if (extra.length) cf.extra_phones = extra;
   put("notes", $("lm_notes").value);
 
+  const selectedSource = [...document.querySelectorAll(".lm-source-check:checked")][0]?.value || "";
+  if (!selectedSource) {
+    $("lm_error").textContent = "Select at least one source.";
+    $("lm_error").classList.remove("hidden");
+    $("lm_submit").disabled = false;
+    return;
+  }
+
   const payload = {
     first_name: $("lm_first_name").value, last_name: $("lm_last_name").value,
-    phone: $("lm_phone").value, source: $("lm_source").value, custom_fields: cf,
+    phone: $("lm_phone").value, source: selectedSource, custom_fields: cf,
   };
   if ($("lm_email").value) payload.email = $("lm_email").value;
   if ($("lm_product_id").value) payload.product_id = Number($("lm_product_id").value);

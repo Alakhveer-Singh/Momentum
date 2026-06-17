@@ -12,6 +12,47 @@
   }
   .lm-select:invalid { color: #94a3b8; font-weight: 400; }
   .lm-select option { color: #0f172a; font-weight: 500; }
+
+  .lm-source-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+  }
+  .lm-source-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+  }
+  .lm-source-item:hover {
+    background-color: #f1f5f9;
+  }
+  .lm-source-item input[type="checkbox"] {
+    margin: 0;
+    accent-color: #6366f1;
+    cursor: pointer;
+  }
+  .lm-source-item label {
+    flex: 1;
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+  }
+  .lm-source-dot {
+    display: inline-block;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    background-color: #6366f1;
+    flex-shrink: 0;
+  }
 </style>
 <div id="leadModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
   <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onclick="event.stopPropagation()">
@@ -61,27 +102,31 @@
           <option>XII</option><option>UnderGraduate</option><option>Graduate</option><option>Post Graduate</option><option>PHD</option></select>
       </div>
       <div><label class="lm-label">Notes</label><textarea id="lm_notes" rows="3" class="lm-inp" placeholder="Any additional notes…"></textarea></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="lm-label">Source <span class="text-red-500">*</span></label>
-          <select id="lm_source" required class="lm-inp lm-select"><option value="">Select source…</option>
-            <option value="web_form">Web form</option><option value="referral">Referral</option>
-            <option value="google_ads">Google ads</option><option value="facebook_ads">Facebook ads</option>
-            <option value="cold_call">Cold call</option></select>
+      <div>
+        <label class="lm-label">Source <span class="text-red-500">*</span></label>
+        <div class="lm-source-list" id="lm_source_list">
+          {% for s in sources %}
+          <div class="lm-source-item">
+            <input type="checkbox" id="lm_source_{{ s }}" name="lm_source" value="{{ s }}" class="lm-source-check" />
+            <span class="lm-source-dot"></span>
+            <label for="lm_source_{{ s }}">{{ s|pretty }}</label>
+          </div>
+          {% endfor %}
         </div>
+        <input type="hidden" id="lm_source" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="lm-label">Stage <span class="text-red-500">*</span></label>
           <select id="lm_stage_id" required class="lm-inp lm-select"><option value="">Select stage…</option>
             {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
         </div>
+        <div>
+          <label class="lm-label">Owner</label>
+          <select id="lm_owner_id" class="lm-inp lm-select"><option value="">Unassigned</option>
+            {% if users %}{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}{% endif %}</select>
+        </div>
       </div>
-      {% if can_assign %}
-      <div>
-        <label class="lm-label">Owner</label>
-        <select id="lm_owner_id" class="lm-inp lm-select"><option value="">Unassigned</option>
-          {% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
-      </div>
-      {% endif %}
       <div id="lm_error" class="hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
       <div class="flex justify-end gap-2 pt-1">
         <button type="button" onclick="closeLeadModal()" class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
