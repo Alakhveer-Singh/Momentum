@@ -184,17 +184,6 @@ document.addEventListener("click", (e) => {
   }
 });
 document.addEventListener("change", (e) => {
-  if (e.target.classList.contains("lm-source-check")) {
-    const checked = [...document.querySelectorAll(".lm-source-check:checked")];
-    const label = document.getElementById("lm_source_label");
-    if (checked.length === 0) {
-      label.textContent = "Select source…";
-    } else if (checked.length === 1) {
-      const src = checked[0].value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      label.textContent = src;
-    } else {
-      label.textContent = `${checked.length} sources`;
-    }
-  }
+  if (e.target.classList.contains("lm-source-check")) lmRenderSourceLabel();
 });
 </script>

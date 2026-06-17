@@ -376,6 +376,7 @@
   const ACT_LABEL = {call:'Call',email:'Email',meeting:'Meeting',note:'Note',stage_change:'Stage',task:'Task'};
 
   let panelLeadId = null;
+  let panelLead = null;
   async function openLeadPanel(id) {
     panelLeadId = id;
     // show loading state
@@ -385,6 +386,7 @@
     document.getElementById("leadPanelContent").innerHTML = '<div style="color:#94a3b8;padding:24px;text-align:center;">Loading…</div>';
 
     const lead = await api(`leads/${id}`);
+    panelLead = lead;
     document.getElementById("panelTitle").textContent = lead.full_name;
     if (lead.job_title) {
       document.getElementById("panelTitle").insertAdjacentHTML("afterend",
@@ -491,7 +493,9 @@
       </div>
     `;
     lucide.createIcons();
-    document.querySelectorAll(".pnl-source-check").forEach(cb => { cb.checked = cb.value === lead.source; });
+    const savedSources = (lead.custom_fields && lead.custom_fields.sources) || (lead.source ? [lead.source] : []);
+    document.querySelectorAll(".pnl-source-check").forEach(cb => { cb.checked = savedSources.includes(cb.value); });
+    renderPanelSourceLabel();
   }
 
   function togglePanelSourceMenu(e) {
@@ -499,18 +503,27 @@
     const menu = document.getElementById("pnl_source_menu");
     if (menu) menu.style.display = menu.style.display === "none" ? "block" : "none";
   }
-  function updatePanelSourceLabel(leadId) {
+  function renderPanelSourceLabel() {
     const checked = [...document.querySelectorAll(".pnl-source-check:checked")];
     const label = document.getElementById("pnl_source_label");
-    if (!checked.length) return;
+    if (!label) return;
+    if (!checked.length) { label.textContent = "Select source…"; return; }
     if (checked.length === 1) {
-      const src = checked[0].value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      if (label) label.textContent = src;
+      label.textContent = checked[0].value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     } else {
-      if (label) label.textContent = `${checked.length} sources`;
+      label.textContent = `${checked.length} sources`;
     }
-    const src = checked[0].value;
-    api(`leads/${leadId}`, { method: "PUT", body: { source: src } });
+  }
+  async function updatePanelSourceLabel(leadId) {
+    renderPanelSourceLabel();
+    const sources = [...document.querySelectorAll(".pnl-source-check:checked")].map(c => c.value);
+    const cf = { ...(panelLead && panelLead.custom_fields || {}), sources };
+    const body = { source: sources[0] || "", custom_fields: cf };
+    if (panelLead) { panelLead.source = body.source; panelLead.custom_fields = cf; }
+    await api(`leads/${leadId}`, { method: "PUT", body });
+    // reflect primary source in the table row's source dropdown without closing panel
+    const rowSel = document.querySelector(`.lead-row[data-id="${leadId}"] select`);
+    if (rowSel && body.source) rowSel.value = body.source;
   }
   document.addEventListener("click", (e) => {
     const menu = document.getElementById("pnl_source_menu");

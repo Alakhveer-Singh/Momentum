@@ -20,10 +20,24 @@ function syncWa() {
 document.addEventListener("change", (e) => { if (e.target.id === "lm_wa_same") syncWa(); });
 document.addEventListener("input", (e) => { if (e.target.id === "lm_phone" && $("lm_wa_same").checked) $("lm_whatsapp").value = e.target.value; });
 
+function lmRenderSourceLabel() {
+  const checked = [...document.querySelectorAll(".lm-source-check:checked")];
+  const label = document.getElementById("lm_source_label");
+  if (!label) return;
+  if (!checked.length) { label.textContent = "Select source…"; return; }
+  if (checked.length === 1) {
+    label.textContent = checked[0].value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  } else {
+    label.textContent = `${checked.length} sources`;
+  }
+}
+
 function openLeadModal(lead = null) {
   $("leadForm").reset();
   $("lm_extra_phones").innerHTML = "";
   $("lm_error").classList.add("hidden");
+  document.querySelectorAll(".lm-source-check").forEach(cb => { cb.checked = false; });
+  lmRenderSourceLabel();
   $("leadModalTitle").textContent = lead ? "Edit Lead" : "New Lead";
   $("lm_id").value = lead ? lead.id : "";
   if (lead) {
@@ -38,13 +52,11 @@ function openLeadModal(lead = null) {
     $("lm_highest_education").value = cf.highest_education || "";
     $("lm_notes").value = cf.notes || lead.notes || "";
     $("lm_product_id").value = lead.product_id || "";
+    const savedSources = (cf.sources && cf.sources.length) ? cf.sources : (lead.source ? [lead.source] : []);
     document.querySelectorAll(".lm-source-check").forEach(cb => {
-      cb.checked = cb.value === lead.source;
+      cb.checked = savedSources.includes(cb.value);
     });
-    if (lead.source) {
-      const src = lead.source.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      document.getElementById("lm_source_label").textContent = src;
-    }
+    lmRenderSourceLabel();
     $("lm_stage_id").value = lead.stage_id || "";
     if ($("lm_owner_id")) $("lm_owner_id").value = lead.owner_id || "";
     $("lm_whatsapp").value = cf.whatsapp || "";
@@ -72,17 +84,18 @@ $("leadForm").addEventListener("submit", async (e) => {
   if (extra.length) cf.extra_phones = extra;
   put("notes", $("lm_notes").value);
 
-  const selectedSource = [...document.querySelectorAll(".lm-source-check:checked")][0]?.value || "";
-  if (!selectedSource) {
+  const selectedSources = [...document.querySelectorAll(".lm-source-check:checked")].map(c => c.value);
+  if (!selectedSources.length) {
     $("lm_error").textContent = "Select at least one source.";
     $("lm_error").classList.remove("hidden");
     $("lm_submit").disabled = false;
     return;
   }
+  cf.sources = selectedSources;
 
   const payload = {
     first_name: $("lm_first_name").value, last_name: $("lm_last_name").value,
-    phone: $("lm_phone").value, source: selectedSource, custom_fields: cf,
+    phone: $("lm_phone").value, source: selectedSources[0], custom_fields: cf,
   };
   if ($("lm_email").value) payload.email = $("lm_email").value;
   if ($("lm_product_id").value) payload.product_id = Number($("lm_product_id").value);
