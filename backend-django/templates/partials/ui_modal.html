@@ -59,7 +59,8 @@
       else msgEl.classList.add("hidden");
       errEl.classList.add("hidden");
       confirmBtn.textContent = opts.confirmText || "Save";
-      confirmBtn.className = "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+      confirmBtn.className = "rounded-lg px-4 py-2 text-sm font-semibold text-white";
+      confirmBtn.style.background = "#4f46e5";
       bodyEl.innerHTML = "";
       bodyEl.classList.remove("hidden");
       const inputs = {};
@@ -124,7 +125,8 @@
       iconEl.className = "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full " + (danger ? "bg-red-50 text-red-500" : "bg-indigo-50 text-indigo-600");
       iconEl.innerHTML = `<i data-lucide="${danger ? 'alert-triangle' : 'help-circle'}" class="h-5 w-5"></i>`;
       confirmBtn.textContent = o.confirmText || (danger ? "Delete" : "Confirm");
-      confirmBtn.className = "rounded-lg px-4 py-2 text-sm font-semibold text-white " + (danger ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700");
+      confirmBtn.className = "rounded-lg px-4 py-2 text-sm font-semibold text-white";
+      confirmBtn.style.background = danger ? "#dc2626" : "#4f46e5";
       confirmBtn.onclick = () => close(true);
       open();
       lucide.createIcons();
