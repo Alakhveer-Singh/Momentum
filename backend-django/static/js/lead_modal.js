@@ -38,7 +38,13 @@ function openLeadModal(lead = null) {
     $("lm_highest_education").value = cf.highest_education || "";
     $("lm_notes").value = cf.notes || lead.notes || "";
     $("lm_product_id").value = lead.product_id || "";
-    document.querySelectorAll(".lm-source-check").forEach(cb => { cb.checked = cb.value === lead.source; });
+    document.querySelectorAll(".lm-source-check").forEach(cb => {
+      cb.checked = cb.value === lead.source;
+    });
+    if (lead.source) {
+      const src = lead.source.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      document.getElementById("lm_source_label").textContent = src;
+    }
     $("lm_stage_id").value = lead.stage_id || "";
     if ($("lm_owner_id")) $("lm_owner_id").value = lead.owner_id || "";
     $("lm_whatsapp").value = cf.whatsapp || "";

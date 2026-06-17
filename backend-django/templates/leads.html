@@ -58,11 +58,27 @@
     <div class="ml-auto flex items-center gap-2">
       <span id="bulkCount" class="text-xs font-medium text-slate-400"></span>
       {% if can_assign %}
-      <select id="bulkOwner" disabled class="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50">
-        <option value="">Assign to…</option>
-        {% for u in users %}<option value="{{ u.id }}">{{ u.name }} — {{ u.get_role_display }}</option>{% endfor %}
-        <option value="0">Unassign</option>
-      </select>
+      <div class="relative">
+        <button type="button" onclick="toggleBulkOwnerMenu(event)" id="bulkOwnerBtn" disabled class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+          <i data-lucide="user-check" class="h-4 w-4"></i>
+          <span>Assign to…</span>
+          <i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>
+        </button>
+        <div id="bulkOwnerMenu" class="absolute right-0 z-30 mt-1 hidden w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          {% for u in users %}
+          <button type="button" onclick="selectBulkOwner({{ u.id }}, '{{ u.name|escapejs }}')" class="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">
+            <span class="inline-block h-2 w-2 rounded-full bg-indigo-600 flex-shrink-0"></span>
+            <span>{{ u.name }}</span>
+            <span class="text-xs text-slate-500 ml-auto">{{ u.get_role_display }}</span>
+          </button>
+          {% endfor %}
+          <div class="my-1 border-t border-slate-100"></div>
+          <button type="button" onclick="selectBulkOwner(0, 'Unassign')" class="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50">
+            <span class="inline-block h-2 w-2 rounded-full bg-slate-300 flex-shrink-0"></span>
+            <span class="font-medium">Unassign</span>
+          </button>
+        </div>
+      </div>
       <button type="button" id="bulkAssignBtn" onclick="bulkAssign()" disabled class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">Assign</button>
       {% endif %}
       {% if can_delete %}
@@ -258,6 +274,7 @@
   });
 
   // --- Checkbox selection -> top Assign/Delete toolbar --------------------
+  let selectedBulkOwnerId = null;
   function selectedLeadIds() {
     return [...document.querySelectorAll(".lead-check:checked")].map(c => c.value);
   }
@@ -266,10 +283,10 @@
     const n = ids.length;
     const count = document.getElementById("bulkCount");
     if (count) count.textContent = n ? `${n} selected` : "";
-    const owner = document.getElementById("bulkOwner");
+    const ownerBtn = document.getElementById("bulkOwnerBtn");
     const assign = document.getElementById("bulkAssignBtn");
     const del = document.getElementById("bulkDeleteBtn");
-    if (owner) owner.disabled = n === 0;
+    if (ownerBtn) ownerBtn.disabled = n === 0;
     if (assign) assign.disabled = n === 0;
     if (del) del.disabled = n === 0;
     const all = document.getElementById("selectAll");
@@ -280,12 +297,30 @@
     document.querySelectorAll(".lead-check").forEach(c => { c.checked = box.checked; });
     onLeadCheck();
   }
+  function toggleBulkOwnerMenu(e) {
+    e.preventDefault();
+    document.getElementById("bulkOwnerMenu").classList.toggle("hidden");
+  }
+  function selectBulkOwner(id, name) {
+    selectedBulkOwnerId = id;
+    document.getElementById("bulkOwnerBtn").textContent = "";
+    const btn = document.getElementById("bulkOwnerBtn");
+    btn.innerHTML = `<i data-lucide="user-check" class="h-4 w-4"></i><span>${name}</span><i data-lucide="chevron-down" class="h-3.5 w-3.5"></i>`;
+    document.getElementById("bulkOwnerMenu").classList.add("hidden");
+    lucide.createIcons();
+  }
+  document.addEventListener("click", (e) => {
+    const menu = document.getElementById("bulkOwnerMenu");
+    const btn = document.getElementById("bulkOwnerBtn");
+    if (menu && !menu.classList.contains("hidden") && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      menu.classList.add("hidden");
+    }
+  });
   async function bulkAssign() {
     const ids = selectedLeadIds();
     if (!ids.length) return;
-    const val = document.getElementById("bulkOwner").value;
-    if (val === "") { alert("Pick who to assign to."); return; }
-    const owner_id = val === "0" ? null : Number(val);
+    if (selectedBulkOwnerId === null) { alert("Pick who to assign to."); return; }
+    const owner_id = selectedBulkOwnerId === 0 ? null : Number(selectedBulkOwnerId);
     try {
       await api("leads/bulk-assign", { method: "POST", body: { ids, owner_id } });
       location.reload();
