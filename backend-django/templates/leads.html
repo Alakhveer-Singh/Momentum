@@ -213,68 +213,7 @@
 </div>
 {% endblock %}
 {% block page_js %}
-<script src="https://unpkg.com/libphonenumber-js@1.11.4/bundle/libphonenumber-max.js"></script>
-<script src="{% static 'js/phone_detect.js' %}"></script>
 <script src="{% static 'js/lead_modal.js' %}"></script>
-<script>
-  // --- Phone detection wiring for the New Lead form -----------------------
-  let lmPhoneManualCountry = "";   // user override ("" = auto)
-  function lmBuildOverrideOptions() {
-    const sel = document.getElementById("lm_phone_override");
-    if (!sel || sel.dataset.built) return;
-    (window.PhoneDetect?.CANDIDATES || []).forEach(iso => {
-      const o = document.createElement("option");
-      o.value = iso;
-      o.textContent = `${PhoneDetect.flagEmoji(iso)} ${PhoneDetect.countryName(iso)}`;
-      sel.appendChild(o);
-    });
-    sel.dataset.built = "1";
-  }
-  function lmRenderDetect(res) {
-    const box = document.getElementById("lm_phone_detect");
-    if (!box) return;
-    if (!res || !res.isValid) {
-      document.getElementById("lm_phone_flag").textContent = "⚠️";
-      document.getElementById("lm_phone_country").textContent = res?.error || "Not recognized";
-      document.getElementById("lm_phone_country").className = "font-medium text-amber-600";
-      document.getElementById("lm_phone_formatted").textContent = "";
-      box.style.display = "flex";
-      return;
-    }
-    document.getElementById("lm_phone_flag").textContent = PhoneDetect.flagEmoji(res.country);
-    document.getElementById("lm_phone_country").textContent = `${PhoneDetect.countryName(res.country)} (${res.countryCode})`;
-    document.getElementById("lm_phone_country").className = "font-medium text-slate-600";
-    document.getElementById("lm_phone_formatted").textContent = res.formattedNumber;
-    box.style.display = "flex";
-  }
-  function lmDetectPhone(value) {
-    lmBuildOverrideOptions();
-    if (!value || !value.trim()) { document.getElementById("lm_phone_detect").style.display = "none"; return; }
-    let res;
-    if (lmPhoneManualCountry) {
-      // Force the chosen country.
-      try {
-        const lib = window.libphonenumber;
-        const raw = value.replace(/[\s().\-]/g, "");
-        if (lib.isValidPhoneNumber(raw, lmPhoneManualCountry)) {
-          const p = lib.parsePhoneNumber(raw, lmPhoneManualCountry);
-          res = { countryCode: "+" + p.countryCallingCode, formattedNumber: p.number, country: p.country || lmPhoneManualCountry, isValid: true };
-        } else {
-          res = { isValid: false, error: "Invalid for selected country" };
-        }
-      } catch (e) { res = { isValid: false, error: "Invalid number" }; }
-    } else {
-      res = PhoneDetect.detectAndFormatPhoneNumber(value);
-    }
-    lmRenderDetect(res);
-    // stash formatted number so submit can use it
-    document.getElementById("lm_phone").dataset.formatted = res.isValid ? res.formattedNumber : "";
-  }
-  function lmOverridePhone(iso) {
-    lmPhoneManualCountry = iso;
-    lmDetectPhone(document.getElementById("lm_phone").value);
-  }
-</script>
 <script>
   const sources = [{% for s in sources %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}];
   const stages = [{% for s in stages %}{"id":{{ s.id }},"name":"{{ s.name|escapejs }}","color":"{{ s.color }}"}{% if not forloop.last %},{% endif %}{% endfor %}];

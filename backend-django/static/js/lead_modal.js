@@ -65,10 +65,9 @@ $("leadForm").addEventListener("submit", async (e) => {
   if (extra.length) cf.extra_phones = extra;
   put("notes", $("lm_notes").value);
 
-  const phoneVal = $("lm_phone").dataset.formatted || $("lm_phone").value;
   const payload = {
     first_name: $("lm_first_name").value, last_name: $("lm_last_name").value,
-    phone: phoneVal, source: $("lm_source").value, custom_fields: cf,
+    phone: $("lm_phone").value, source: $("lm_source").value, custom_fields: cf,
   };
   if ($("lm_email").value) payload.email = $("lm_email").value;
   if ($("lm_stage_id").value) payload.stage_id = Number($("lm_stage_id").value);

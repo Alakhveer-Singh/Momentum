@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "django",
-      "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd backend-django && .venv/bin/python -m daphne -p 8000 quibus.asgi:application"],
-      "port": 8000,
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
+      "port": 3000,
       "autoPort": false
     }
   ]
