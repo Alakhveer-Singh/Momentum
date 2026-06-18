@@ -115,7 +115,7 @@
           <th class="px-4 py-3 text-right">Score</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="leadsTbody">
         {% for lead in page_obj %}
         <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer lead-row" data-id="{{ lead.id }}">
           {% if can_assign or can_delete %}
@@ -153,17 +153,14 @@
     </table>
   </div>
 
-  {% if page_obj.paginator.num_pages > 1 %}
-  <div class="flex items-center justify-between text-sm">
-    <span class="text-slate-500">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
-    <div class="flex gap-2">
-      {% with q="&search="|add:search|add:"&tab="|add:tab %}
-      <a href="?page={{ page_obj.previous_page_number }}{{ q }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 {% if not page_obj.has_previous %}pointer-events-none opacity-40{% endif %}">Previous</a>
-      <a href="?page={{ page_obj.next_page_number }}{{ q }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 {% if not page_obj.has_next %}pointer-events-none opacity-40{% endif %}">Next</a>
-      {% endwith %}
-    </div>
+  <div class="flex flex-col items-center gap-2 text-sm">
+    <span id="leadsCount" class="text-slate-500" data-total="{{ page_obj.paginator.count }}">Showing {{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+    {% if page_obj.has_next %}
+    <button type="button" id="loadMoreBtn" data-next="2" onclick="loadMoreLeads()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-600 hover:bg-slate-50">
+      <i data-lucide="chevron-down" class="h-4 w-4"></i> <span>More…</span>
+    </button>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 {% include "partials/lead_modal.html" %}
@@ -256,22 +253,51 @@
 
   // Row click opens side panel; hover preview only over the lead NAME.
   let hoverTimer = null, curX = 0, curY = 0;
-  document.querySelectorAll(".lead-row").forEach(row => {
+  function bindLeadRow(row) {
     row.addEventListener("click", () => {
       document.getElementById("lead-hover-card")?.remove();
       openLeadPanel(row.dataset.id);
     });
-  });
-  document.querySelectorAll(".lead-name").forEach(nameEl => {
-    nameEl.addEventListener("mousemove", e => { curX = e.clientX; curY = e.clientY; });
-    nameEl.addEventListener("mouseenter", () => {
-      hoverTimer = setTimeout(() => loadLeadPreview(nameEl.dataset.id, curX, curY), 500);
-    });
-    nameEl.addEventListener("mouseleave", () => {
-      clearTimeout(hoverTimer);
-      document.getElementById("lead-hover-card")?.remove();
-    });
-  });
+    const nameEl = row.querySelector(".lead-name");
+    if (nameEl) {
+      nameEl.addEventListener("mousemove", e => { curX = e.clientX; curY = e.clientY; });
+      nameEl.addEventListener("mouseenter", () => {
+        hoverTimer = setTimeout(() => loadLeadPreview(nameEl.dataset.id, curX, curY), 500);
+      });
+      nameEl.addEventListener("mouseleave", () => {
+        clearTimeout(hoverTimer);
+        document.getElementById("lead-hover-card")?.remove();
+      });
+    }
+  }
+  document.querySelectorAll(".lead-row").forEach(bindLeadRow);
+
+  async function loadMoreLeads() {
+    const btn = document.getElementById("loadMoreBtn");
+    if (!btn) return;
+    const next = btn.dataset.next;
+    const label = btn.querySelector("span");
+    label.textContent = "Loading…";
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", next);
+    try {
+      const res = await fetch(`${window.location.pathname}?${params.toString()}`, { headers: { "X-Requested-With": "fetch" } });
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const newRows = doc.querySelectorAll("#leadsTbody .lead-row");
+      const tbody = document.getElementById("leadsTbody");
+      newRows.forEach(r => { const node = document.importNode(r, true); tbody.appendChild(node); bindLeadRow(node); });
+      lucide.createIcons();
+      // update count + next page / hide button when done
+      const newCount = doc.getElementById("leadsCount");
+      if (newCount) document.getElementById("leadsCount").textContent = newCount.textContent;
+      if (doc.getElementById("loadMoreBtn")) { btn.dataset.next = String(Number(next) + 1); label.textContent = "More…"; }
+      else btn.remove();
+    } catch (e) {
+      label.textContent = "More…";
+      alert("Could not load more leads.");
+    }
+  }
 
   // --- Checkbox selection -> top Assign/Delete toolbar --------------------
   let selectedBulkOwnerId = null;

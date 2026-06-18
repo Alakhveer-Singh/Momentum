@@ -171,7 +171,7 @@ def leads(request):
         qs = qs.filter(stage_id=tab)
     # Most-recently-active leads first (new + just-touched bubble to top)
     qs = qs.annotate(recent=Coalesce("last_activity_at", "created_at")).order_by("-recent", "-created_at")
-    paginator = Paginator(qs, 25)
+    paginator = Paginator(qs, 10)
     page = paginator.get_page(request.GET.get("page", 1))
 
     stages = list(PipelineStage.objects.all())
