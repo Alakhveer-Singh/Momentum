@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% load lms_extras static %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <a href="/students" class="inline-flex items-center gap-1 text-sm text-slate-900 hover:underline"><i data-lucide="arrow-left" class="h-4 w-4"></i> Back to Students</a>
+      <h1 class="text-3xl font-bold">{{ lead.full_name }}</h1>
+      {% if lead.product %}<div class="text-slate-500">{{ lead.product.name }}</div>{% endif %}
+    </div>
+    <button onclick="openEditModal()" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"><i data-lucide="pencil" class="h-4 w-4"></i> Edit</button>
+  </div>
+
+  <div class="grid gap-6 lg:grid-cols-3">
+    <!-- Left sidebar -->
+    <div class="space-y-4">
+      <!-- Photo -->
+      {% if lead.photo %}
+      <div class="rounded-2xl border-2 border-slate-200 bg-white p-4 text-center shadow-sm">
+        <img src="{{ lead.photo.url }}" alt="Profile" class="mx-auto h-56 w-56 rounded-xl object-cover shadow-md" />
+      </div>
+      {% endif %}
+
+      <!-- Contact card -->
+      <div class="rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-100 to-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center gap-2 pb-3 border-b-2 border-slate-200">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900"><i data-lucide="phone" class="h-5 w-5 text-white"></i></span>
+          <div class="font-bold text-slate-900">Contact</div>
+        </div>
+        <dl class="space-y-3 text-sm">
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">Phone</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ lead.phone|default:"—" }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">Email</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ lead.email|default:"—" }}</dd>
+          </div>
+          {% for k, v in custom_fields %}{% if k == 'whatsapp' %}
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">WhatsApp</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ v|default:"—" }}</dd>
+          </div>
+          {% endif %}{% endfor %}
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">Source</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ lead.source|pretty }}</dd>
+          </div>
+          <div class="border-t border-slate-200 pt-3">
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">Enrolled</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ lead.converted_at|date:"M d, Y" }}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Attachments -->
+      <div class="rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-100 to-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center gap-2 pb-3 border-b-2 border-slate-200">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900"><i data-lucide="paperclip" class="h-5 w-5 text-white"></i></span>
+          <div class="font-bold text-slate-900">Attachments</div>
+        </div>
+        <label style="background:linear-gradient(135deg,#0d9488,#10b981);color:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 4px 12px rgba(13,148,136,.3);margin-bottom:12px;">
+          <i data-lucide="upload" style="width:14px;height:14px;"></i> Upload file
+          <input type="file" id="attach_input" style="display:none;" onchange="uploadAttachment(this)" />
+        </label>
+        <div id="attach_list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Right content -->
+    <div class="lg:col-span-2 space-y-4">
+      <!-- Personal Information -->
+      <div class="rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-100 to-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center gap-2 pb-3 border-b-2 border-slate-200">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900"><i data-lucide="user" class="h-5 w-5 text-white"></i></span>
+          <div class="font-bold text-slate-900">Personal Information</div>
+        </div>
+        <dl class="grid grid-cols-2 gap-4 text-sm">
+          {% for k, v in custom_fields %}
+          {% if k == 'gender' or k == 'dob' or k == 'education' or k == 'qualification' %}
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">{{ k|pretty }}</dt>
+            <dd class="mt-2 font-semibold text-slate-900">{{ v|default:"—" }}</dd>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </dl>
+      </div>
+
+      <!-- Guardian Information -->
+      <div class="rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-100 to-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center gap-2 pb-3 border-b-2 border-slate-200">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900"><i data-lucide="users" class="h-5 w-5 text-white"></i></span>
+          <div class="font-bold text-slate-900">Guardian Information</div>
+        </div>
+        <dl class="grid grid-cols-2 gap-4 text-sm">
+          {% for k, v in custom_fields %}
+          {% if k == 'guardian_name' or k == 'guardian_occupation' %}
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">{{ k|pretty }}</dt>
+            <dd class="mt-2 font-semibold text-slate-900">{{ v|default:"—" }}</dd>
+          </div>
+          {% endif %}
+          {% endfor %}
+          {% for k, v in custom_fields %}
+          {% if k == 'guardian_number' %}
+          <div class="col-span-2">
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">{{ k|pretty }}</dt>
+            <dd class="mt-2 font-semibold text-slate-900">{{ v|default:"—" }}</dd>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </dl>
+      </div>
+
+      <!-- Address -->
+      <div class="rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-100 to-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center gap-2 pb-3 border-b-2 border-slate-200">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900"><i data-lucide="map-pin" class="h-5 w-5 text-white"></i></span>
+          <div class="font-bold text-slate-900">Address</div>
+        </div>
+        <dl class="space-y-4 text-sm">
+          {% for k, v in custom_fields %}
+          {% if k == 'current_address' %}
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">{{ k|pretty }}</dt>
+            <dd class="mt-2 font-semibold text-slate-900 whitespace-pre-wrap">{{ v|default:"—" }}</dd>
+          </div>
+          {% endif %}
+          {% endfor %}
+          {% for k, v in custom_fields %}
+          {% if k == 'permanent_address' %}
+          <div class="border-t border-slate-200 pt-4">
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">{{ k|pretty }}</dt>
+            <dd class="mt-2 font-semibold text-slate-900 whitespace-pre-wrap">{{ v|default:"—" }}</dd>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </dl>
+      </div>
+
+      <!-- Batch Information -->
+      <div class="rounded-2xl border-2 border-slate-200 bg-gradient-to-br from-slate-100 to-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center gap-2 pb-3 border-b-2 border-slate-200">
+          <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900"><i data-lucide="calendar" class="h-5 w-5 text-white"></i></span>
+          <div class="font-bold text-slate-900">Batch Information</div>
+        </div>
+        <dl class="grid grid-cols-3 gap-4 text-sm">
+          {% for k, v in custom_fields %}
+          {% if k == 'batch_number' or k == 'batch_time' or k == 'batch_start' %}
+          <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-900">{{ k|pretty }}</dt>
+            <dd class="mt-2 font-semibold text-slate-900">{{ v|default:"—" }}</dd>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal (reused from students.html) -->
+<div id="editOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:60;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);" onclick="if(event.target.id==='editOverlay')closeEditModal()">
+  <div style="background:#fff;border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.32);width:100%;max-width:600px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="background:linear-gradient(125deg,#0f766e 0%,#0d9488 50%,#10b981 100%);padding:24px 28px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <div style="color:#fff;font-size:18px;font-weight:800;">Edit Profile</div>
+      <button onclick="closeEditModal()" style="background:rgba(255,255,255,.22);border:none;border-radius:9px;width:32px;height:32px;color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.38)'" onmouseout="this.style.background='rgba(255,255,255,.22)'">&times;</button>
+    </div>
+    <div id="editBody" style="padding:24px 28px;overflow-y:auto;background:#fafafa;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding:15px 28px;border-top:1px solid #f1f5f9;flex-shrink:0;background:#fff;">
+      <button onclick="closeEditModal()" style="background:#f1f5f9;color:#475569;border:none;border-radius:11px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button onclick="saveProfileDetail()" id="saveBtn" style="background:linear-gradient(135deg,#0d9488,#10b981);color:#fff;border:none;border-radius:11px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 5px 14px rgba(13,148,136,.35);"><i data-lucide="check" style="width:15px;height:15px;"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+{% include "partials/ui_modal.html" %}
+{% endblock %}
+
+{% block page_js %}
+<script>
+  const STUDENT_ID = {{ lead.id }};
+  const PROFILE_FIELDS = ["full_name","gender","dob","phone","whatsapp","email","education","qualification","guardian_name","guardian_occupation","guardian_number","current_address","permanent_address","batch_time","batch_number","batch_start","achievements"];
+  const TEXTAREA_FIELDS = ["current_address","permanent_address","achievements"];
+  // Current values rendered server-side so the edit modal pre-fills (and does not wipe saved data).
+  const PROFILE_VALUES = {
+    full_name: "{{ lead.full_name|escapejs }}",
+    phone: "{{ lead.phone|escapejs }}",
+    email: "{{ lead.email|escapejs }}",
+    {% for k, v in custom_fields %}"{{ k|escapejs }}": "{{ v|escapejs }}",
+    {% endfor %}
+  };
+
+  function openEditModal() {
+    document.getElementById("editOverlay").style.display = "flex";
+    const fields = PROFILE_FIELDS.map((f) => {
+      const ctrl = TEXTAREA_FIELDS.includes(f)
+        ? `<textarea id="edit_${f}" rows="3" style="width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px 12px;font-size:14px;outline:none;box-sizing:border-box;resize:vertical;"></textarea>`
+        : `<input type="text" id="edit_${f}" style="width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px 12px;font-size:14px;outline:none;box-sizing:border-box;" />`;
+      return `<div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:#0d9488;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">${f.replace(/_/g, ' ')}</label>
+        ${ctrl}
+      </div>`;
+    }).join("");
+    const photoHtml = `<div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:#0d9488;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Photo</label>
+      <input type="file" id="edit_photo" accept="image/*" style="width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px 12px;font-size:14px;outline:none;box-sizing:border-box;" />
+    </div>`;
+    document.getElementById("editBody").innerHTML = photoHtml + fields;
+    PROFILE_FIELDS.forEach((f) => {
+      const el = document.getElementById("edit_" + f);
+      if (el) el.value = PROFILE_VALUES[f] ?? "";
+    });
+  }
+
+  function closeEditModal() {
+    document.getElementById("editOverlay").style.display = "none";
+  }
+
+  async function saveProfileDetail() {
+    const fd = new FormData();
+    PROFILE_FIELDS.forEach((f) => fd.append(f, document.getElementById("edit_" + f).value));
+    const photoInput = document.getElementById("edit_photo");
+    if (photoInput && photoInput.files.length > 0) {
+      fd.append("photo", photoInput.files[0]);
+    }
+    const btn = document.getElementById("saveBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+    try {
+      const res = await fetch(`/api/leads/${STUDENT_ID}/profile`, {
+        method: "POST",
+        headers: { "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content },
+        body: fd,
+      });
+      if (!res.ok) throw new Error("Save failed");
+      closeEditModal();
+      await uiAlert("Profile saved.", { type: "success", title: "Saved" });
+      location.reload();
+    } catch (err) {
+      await uiAlert(err.message || "Could not save.", { type: "error" });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save";
+    }
+  }
+
+  // --- Attachments ---
+  function esc(s) { return (s == null ? "" : String(s)).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  function fmtSize(b) {
+    if (!b) return "";
+    const u = ["B", "KB", "MB", "GB"]; let i = 0, n = b;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return n.toFixed(i > 0 && n < 10 ? 1 : 0) + " " + u[i];
+  }
+  function attIcon(ct, name) {
+    const n = (name || "").toLowerCase();
+    if ((ct || "").startsWith("image/")) return "image";
+    if (n.endsWith(".pdf")) return "file-text";
+    if (/\.(docx?|txt|rtf)$/.test(n)) return "file-text";
+    if (/\.(xlsx?|csv)$/.test(n)) return "table";
+    if (/\.(zip|rar|7z|tar|gz)$/.test(n)) return "file-archive";
+    return "file";
+  }
+  function renderAttachments(items) {
+    const list = document.getElementById("attach_list");
+    if (!list) return;
+    if (!items.length) {
+      list.innerHTML = '<div style="color:#cbd5e1;font-size:13px;padding:6px 0;">No files attached yet.</div>';
+      return;
+    }
+    list.innerHTML = items.map((a) => `
+      <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;">
+        <span style="width:34px;height:34px;border-radius:9px;background:#f0fdfa;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i data-lucide="${attIcon(a.content_type, a.name)}" style="width:17px;height:17px;color:#0d9488;"></i></span>
+        <div style="min-width:0;flex:1;">
+          <a href="${esc(a.url)}" target="_blank" rel="noopener" style="font-size:14px;font-weight:600;color:#1e293b;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.name)}</a>
+          <div style="font-size:12px;color:#94a3b8;">${fmtSize(a.size)}</div>
+        </div>
+        <a href="${esc(a.url)}" download style="color:#64748b;width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;" title="Download"><i data-lucide="download" style="width:15px;height:15px;"></i></a>
+        <button onclick="deleteAttachment(${a.id})" style="color:#ef4444;background:none;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;" title="Delete"><i data-lucide="trash-2" style="width:15px;height:15px;"></i></button>
+      </div>`).join("");
+    lucide.createIcons();
+  }
+  async function loadAttachments() {
+    const list = document.getElementById("attach_list");
+    if (!list) return;
+    list.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:6px 0;">Loading…</div>';
+    try { renderAttachments(await api(`leads/${STUDENT_ID}/attachments`)); }
+    catch (e) { list.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:6px 0;">Could not load attachments.</div>'; }
+  }
+  async function uploadAttachment(input) {
+    const f = input.files[0];
+    if (!f) return;
+    const list = document.getElementById("attach_list");
+    const prev = list ? list.innerHTML : "";
+    if (list) list.innerHTML = '<div style="color:#0d9488;font-size:13px;padding:6px 0;">Uploading…</div>';
+    const fd = new FormData(); fd.append("file", f);
+    try {
+      const res = await fetch(`/api/leads/${STUDENT_ID}/attachments`, {
+        method: "POST",
+        headers: { "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content },
+        body: fd,
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw { data: d }; }
+      input.value = "";
+      await loadAttachments();
+      uiAlert("File attached.", { type: "success", title: "Uploaded" });
+    } catch (err) {
+      if (list) list.innerHTML = prev;
+      uiAlert(err.data?.message || "Upload failed.", { type: "error" });
+    }
+  }
+  async function deleteAttachment(aid) {
+    if (!await uiConfirm("Remove file?", "Delete this attachment? This cannot be undone.", { confirmText: "Delete", danger: true })) return;
+    try {
+      const res = await fetch(`/api/leads/${STUDENT_ID}/attachments/${aid}/delete`, {
+        method: "POST",
+        headers: { "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content },
+      });
+      if (!res.ok) throw new Error();
+      await loadAttachments();
+    } catch (e) { uiAlert("Could not delete file.", { type: "error" }); }
+  }
+
+  loadAttachments();
+</script>
+{% endblock %}

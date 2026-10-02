@@ -8,5 +8,19 @@ frontend/dist/
 backend-django/.venv/
 backend-django/.env
 backend-django/db.sqlite3
+backend-django/staticfiles/
 __pycache__/
 *.pyc
+
+# macOS metadata
+._*
+
+# Node / logs / secrets
+node_modules/
+*.log
+.env
+*.sqlite3
+.claude/settings.local.json
+
+# User uploads (customer data)
+backend-django/media/

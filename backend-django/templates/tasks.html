@@ -3,64 +3,251 @@
 <div class="space-y-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h1 class="text-xl font-bold">Follow-ups</h1>
-    <button onclick="document.getElementById('taskForm').classList.toggle('hidden')" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"><i data-lucide="plus" class="h-4 w-4"></i> New Follow-up</button>
   </div>
 
-  <form id="taskForm" class="hidden grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-5">
-    <input id="tk_title" required placeholder="Follow-up title *" class="col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-    <select id="tk_priority" class="rounded-lg border border-slate-300 px-2 py-2 text-sm"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
-    <input id="tk_due" type="datetime-local" class="rounded-lg border border-slate-300 px-2 py-2 text-sm" />
-    {% if can_assign %}
-    <select id="tk_assignee" class="rounded-lg border border-slate-300 px-2 py-2 text-sm">{% for u in users %}<option value="{{ u.id }}" {% if u.id == me.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
-    <button class="col-span-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white md:col-span-1">Create</button>
-    {% else %}
-    <button class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white">Create</button>
-    {% endif %}
-  </form>
-
-  <div class="flex gap-2">
-    {% for f in filters %}
-    <a href="?filter={{ f.0 }}" class="rounded-full px-3 py-1.5 text-sm font-medium {% if filter == f.0 %}bg-indigo-600 text-white{% else %}bg-white text-slate-500 hover:bg-slate-50{% endif %}">{{ f.1 }}</a>
-    {% endfor %}
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="flex gap-2">
+      {% for f in filters %}
+      <a href="?filter={{ f.0 }}" class="rounded-full px-3 py-1.5 text-sm font-medium {% if filter == f.0 %}bg-slate-900 text-white{% else %}bg-white text-slate-500 hover:bg-slate-50{% endif %}">{{ f.1 }}</a>
+      {% endfor %}
+    </div>
+    <div class="flex gap-2">
+      <button type="button" id="viewListBtn" onclick="setTasksView('list')" class="rounded-full px-3 py-1.5 text-sm font-medium bg-slate-900 text-white">List</button>
+      <button type="button" id="viewCalBtn" onclick="setTasksView('calendar')" class="rounded-full px-3 py-1.5 text-sm font-medium bg-white text-slate-500 hover:bg-slate-50">Calendar</button>
+    </div>
   </div>
 
-  <div class="space-y-2">
+  <div id="listView" class="space-y-2">
     {% for t in tasks %}
     <div class="flex items-center gap-3 rounded-xl border bg-white p-3 {% if t.status == 'pending' and t.due_at and t.due_at < now %}border-red-200{% else %}border-slate-200{% endif %}">
-      <input type="checkbox" {% if t.status == 'completed' %}checked{% endif %} onchange="toggleTask({{ t.id }}, '{{ t.status }}')" class="h-5 w-5 accent-indigo-600" />
+      <input type="checkbox" id="taskChk_{{ t.id }}"
+        data-id="{{ t.id }}" data-status="{{ t.status }}" data-lead-id="{{ t.lead_id|default:'' }}"
+        data-lead-name="{% if t.lead %}{{ t.lead.first_name }} {{ t.lead.last_name }}{% endif %}"
+        {% if t.status == 'completed' %}checked{% endif %} onchange="maybeCompleteTaskFromEl(this)" class="h-5 w-5 accent-slate-900" />
       <div class="min-w-0 flex-1">
         <div class="font-medium {% if t.status == 'completed' %}text-slate-400 line-through{% endif %}">{{ t.title }}</div>
         <div class="text-xs text-slate-400">
-          {% if t.lead %}<a href="/leads/{{ t.lead.id }}" class="text-indigo-600 hover:underline">{{ t.lead.first_name }} {{ t.lead.last_name }}</a> · {% endif %}
+          {% if t.lead %}<a href="/leads/{{ t.lead.id }}" class="text-slate-900 hover:underline">{{ t.lead.first_name }} {{ t.lead.last_name }}</a> · {% endif %}
           {{ t.assigned_to.name }}
           {% if t.due_at %}<span class="{% if t.status == 'pending' and t.due_at < now %}font-semibold text-red-500{% endif %}"> · due {{ t.due_at|date:"M d, Y H:i" }}</span>{% endif %}
         </div>
       </div>
+      {% if can_assign %}
+      <select onchange="reassignTask({{ t.id }}, this.value, this)" title="Reassign task" class="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600">
+        {% for u in users %}<option value="{{ u.id }}" {% if u.id == t.assigned_to_id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+      </select>
+      {% endif %}
       <span class="rounded-full px-2 py-0.5 text-xs font-medium {% if t.priority == 'high' %}bg-red-100 text-red-700{% elif t.priority == 'medium' %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-500{% endif %}">{{ t.priority }}</span>
     </div>
     {% empty %}
     <div class="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-400">No tasks.</div>
     {% endfor %}
   </div>
+
+  <div id="calendarView" class="hidden rounded-xl border border-slate-200 bg-white p-4">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button type="button" onclick="calMonth(-1)" style="width:30px;height:30px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;color:#334155;font-size:16px;cursor:pointer;">‹</button>
+        <div id="calMonthLabel" style="font-size:15px;font-weight:700;color:#0f172a;min-width:150px;text-align:center;"></div>
+        <button type="button" onclick="calMonth(1)" style="width:30px;height:30px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;color:#334155;font-size:16px;cursor:pointer;">›</button>
+      </div>
+      <button type="button" onclick="calToday()" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">Today</button>
+    </div>
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#e2e8f0;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;"></div>
+  </div>
 </div>
+
+<!-- Log activity (required before completing a follow-up tied to a lead) -->
+<div id="logActOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:70;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);" onclick="if(event.target.id==='logActOverlay')closeLogActivity()">
+  <div style="background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.3);width:100%;max-width:420px;overflow:hidden;">
+    <div style="padding:18px 22px 12px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-weight:700;font-size:16px;color:#0f172a;display:flex;align-items:center;gap:8px;"><i data-lucide="clipboard-list" style="width:18px;height:18px;color:#6366f1;"></i> Log activity first</div>
+      <div id="logActLead" style="font-size:13px;color:#94a3b8;margin-top:3px;"></div>
+    </div>
+    <div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:5px;">Type</label>
+        <select id="logActType" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:9px 11px;font-size:14px;outline:none;">
+          <option value="call">Call</option><option value="meeting">Meeting</option><option value="email">Email</option><option value="note">Note</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:5px;">Summary *</label>
+        <input id="logActSubject" placeholder="e.g. Called, discussed fees" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:9px 11px;font-size:14px;outline:none;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:5px;">Note (optional)</label>
+        <textarea id="logActNote" rows="2" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:9px 11px;font-size:14px;outline:none;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:12px 22px 18px;border-top:1px solid #f1f5f9;">
+      <button type="button" onclick="closeLogActivity()" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button type="button" id="logActSaveBtn" onclick="saveLogActivityAndComplete()" style="flex:1;background:#6366f1;color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Save &amp; complete</button>
+    </div>
+  </div>
+</div>
+{{ tasks_json|json_script:"tasksData" }}
 {% endblock %}
 {% block page_js %}
 <script>
-  const MY_ID = {{ me.id }};
   async function toggleTask(id, status) {
     await api(`tasks/${id}`, { method: "PUT", body: { status: status === "pending" ? "completed" : "pending" } });
     location.reload();
   }
-  document.getElementById("taskForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const due = document.getElementById("tk_due").value;
-    const assignee = document.getElementById("tk_assignee");
-    await api("tasks", { method: "POST", body: {
-      title: document.getElementById("tk_title").value,
-      priority: document.getElementById("tk_priority").value,
-      due_at: due || null,
-      assigned_to: assignee ? Number(assignee.value) : MY_ID } });
-    location.reload();
-  });
+
+  // Reassign a task to another team member (managers/admins only).
+  async function reassignTask(id, userId, sel) {
+    sel.disabled = true;
+    try {
+      await api(`tasks/${id}`, { method: "PATCH", body: { assigned_to: Number(userId) } });
+      const name = sel.options[sel.selectedIndex].text;
+      uiAlert(`Task reassigned to ${name}.`, { type: "success", title: "Reassigned" });
+    } catch (err) {
+      uiAlert(err.data?.message || "Could not reassign task.", { type: "error" });
+    } finally { sel.disabled = false; }
+  }
+
+  // Always ask to log activity before completing a follow-up tied to a lead.
+  function maybeCompleteTask(t) {
+    if (t.status === "pending" && t.lead_id) {
+      const chk = document.getElementById(`taskChk_${t.id}`);
+      if (chk) chk.checked = false;
+      openLogActivity(t);
+      return;
+    }
+    toggleTask(t.id, t.status);
+  }
+
+  function maybeCompleteTaskFromEl(el) {
+    maybeCompleteTask({
+      id: Number(el.dataset.id),
+      status: el.dataset.status,
+      lead_id: el.dataset.leadId ? Number(el.dataset.leadId) : null,
+      lead_name: el.dataset.leadName || "",
+    });
+  }
+
+  let pendingTask = null;
+  function openLogActivity(t) {
+    pendingTask = t;
+    document.getElementById("logActLead").textContent = t.lead_name ? `For ${t.lead_name.trim()}` : "";
+    document.getElementById("logActType").value = "call";
+    document.getElementById("logActSubject").value = "";
+    document.getElementById("logActNote").value = "";
+    document.getElementById("logActOverlay").style.display = "flex";
+    lucide.createIcons();
+    document.getElementById("logActSubject").focus();
+  }
+  function closeLogActivity() {
+    document.getElementById("logActOverlay").style.display = "none";
+    pendingTask = null;
+  }
+  async function saveLogActivityAndComplete() {
+    if (!pendingTask) return;
+    const subject = document.getElementById("logActSubject").value.trim();
+    if (!subject) { document.getElementById("logActSubject").focus(); return; }
+    const btn = document.getElementById("logActSaveBtn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      await api("activities", { method: "POST", body: {
+        lead_id: pendingTask.lead_id,
+        type: document.getElementById("logActType").value,
+        subject,
+        description: document.getElementById("logActNote").value.trim(),
+      } });
+      const taskId = pendingTask.id;
+      closeLogActivity();
+      await toggleTask(taskId, "pending");
+    } catch (err) {
+      uiAlert(err.data?.message || "Could not log activity.", { type: "error" });
+    } finally { btn.disabled = false; btn.textContent = "Save & complete"; }
+  }
+
+  // --- Calendar view --------------------------------------------------------
+  function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+  const ALL_TASKS = JSON.parse(document.getElementById("tasksData").textContent);
+  let calViewDate = new Date();
+  calViewDate.setDate(1);
+
+  const CAL_PRI_STYLE = {
+    high:   { bg: "#fee2e2", color: "#b91c1c" },
+    medium: { bg: "#fef3c7", color: "#92400e" },
+    low:    { bg: "#f1f5f9", color: "#475569" },
+  };
+
+  function setTasksView(v) {
+    document.getElementById("listView").classList.toggle("hidden", v !== "list");
+    document.getElementById("calendarView").classList.toggle("hidden", v !== "calendar");
+    document.getElementById("viewListBtn").className = "rounded-full px-3 py-1.5 text-sm font-medium " +
+      (v === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50");
+    document.getElementById("viewCalBtn").className = "rounded-full px-3 py-1.5 text-sm font-medium " +
+      (v === "calendar" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50");
+    if (v === "calendar") renderCalendar();
+    localStorage.setItem("tasksView", v);
+  }
+
+  function calMonth(delta) {
+    calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + delta, 1);
+    renderCalendar();
+  }
+
+  function calToday() {
+    const d = new Date();
+    calViewDate = new Date(d.getFullYear(), d.getMonth(), 1);
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const year = calViewDate.getFullYear(), month = calViewDate.getMonth();
+    document.getElementById("calMonthLabel").textContent = `${months[month]} ${year}`;
+
+    const byDay = {};
+    ALL_TASKS.forEach(t => {
+      if (!t.due_at) return;
+      const d = new Date(t.due_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      (byDay[key] = byDay[key] || []).push(t);
+    });
+
+    const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const now = new Date();
+
+    const heads = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    let html = heads.map(h => `<div style="background:#f8fafc;padding:8px 10px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;">${h}</div>`).join("");
+
+    const cellStyle = "background:#fafafa;min-height:96px;";
+    for (let i = 0; i < firstDow; i++) html += `<div style="${cellStyle}"></div>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cur = new Date(year, month, d);
+      const isToday = cur.getTime() === today.getTime();
+      const key = `${year}-${month}-${d}`;
+      const dayTasks = (byDay[key] || []).slice().sort((a, b) => (a.due_at || "").localeCompare(b.due_at || ""));
+      const chips = dayTasks.map(t => {
+        const s = CAL_PRI_STYLE[t.priority] || CAL_PRI_STYLE.low;
+        const done = t.status === "completed";
+        const overdue = !done && t.due_at && new Date(t.due_at) < now;
+        const bg = done ? "#f1f5f9" : (overdue ? "#fee2e2" : s.bg);
+        const color = done ? "#94a3b8" : (overdue ? "#b91c1c" : s.color);
+        const deco = done ? "line-through" : "none";
+        const label = t.lead_name ? `${t.title} (${t.lead_name})` : t.title;
+        return `<div onclick="maybeCompleteTask(ALL_TASKS.find(x=>x.id===${t.id}))" title="${esc(label)}" style="background:${bg};color:${color};text-decoration:${deco};border-radius:6px;padding:2px 6px;font-size:11px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${esc(label)}</div>`;
+      }).join("");
+      html += `<div style="background:#fff;padding:6px;min-height:96px;${isToday ? "box-shadow:inset 0 0 0 2px #6366f1;" : ""}">
+        <div style="font-size:12px;font-weight:${isToday ? 700 : 600};color:${isToday ? "#6366f1" : "#0f172a"};margin-bottom:4px;">${d}</div>
+        <div style="max-height:76px;overflow-y:auto;">${chips}</div>
+      </div>`;
+    }
+
+    const trailing = (7 - ((firstDow + daysInMonth) % 7)) % 7;
+    for (let i = 0; i < trailing; i++) html += `<div style="${cellStyle}"></div>`;
+
+    document.getElementById("calGrid").innerHTML = html;
+  }
+
+  setTasksView(localStorage.getItem("tasksView") === "calendar" ? "calendar" : "list");
 </script>
 {% endblock %}

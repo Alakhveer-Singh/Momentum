@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mx-auto max-w-xl space-y-2">
+<div class="max-w-xl space-y-2">
   <div class="mb-6">
     <h1 class="text-xl font-bold">Source Master</h1>
     <p class="mt-1 text-sm text-slate-500">Manage lead sources to categorize where your leads come from.</p>
@@ -15,8 +15,8 @@
       {% for source in sources %}
       <div class="source-row flex items-center gap-3 border-b border-slate-100 py-3 text-sm" draggable="true" data-id="{{ source.id }}">
         <i data-lucide="grip-vertical" class="h-4 w-4 shrink-0 cursor-grab text-slate-300"></i>
-        <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-indigo-600"></span>
-        <span class="name flex-1 text-indigo-600">{{ source.label }}</span>
+        <button type="button" class="color-dot" style="background:{{ source.color }};" data-color="{{ source.color }}" title="Change color" onclick="event.stopPropagation(); openColorPicker(this, this.dataset.color, (c) => setSourceColor({{ source.id }}, c, this))"></button>
+        <span class="name flex-1 text-slate-900">{{ source.label }}</span>
         <div class="flex items-center gap-1">
           <button onclick="renameSource({{ source.id }}, this)" class="rounded p-1 text-slate-400 hover:bg-slate-100"><i data-lucide="pencil" class="h-3.5 w-3.5"></i></button>
           <button onclick="deleteSource({{ source.id }}, '{{ source.label|escapejs }}')" class="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"><i data-lucide="x" class="h-3.5 w-3.5"></i></button>
@@ -24,7 +24,7 @@
       </div>
       {% endfor %}
     </div>
-    <button onclick="addSource()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-4 w-4"></i> Add source</button>
+    <button onclick="addSource()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-slate-900 hover:bg-slate-100"><i data-lucide="plus" class="h-4 w-4"></i> Add source</button>
   </div>
 </div>
 {% endblock %}
@@ -38,7 +38,15 @@
     try {
       const res = await api(`sources/${id}`, { method: "PATCH", body: { label: name } });
       span.textContent = res.label;
-    } catch (err) { alert(err.data?.detail || "Rename failed."); }
+    } catch (err) { uiAlert(err.data?.detail || "Rename failed.", { type: "error" }); }
+  }
+
+  async function setSourceColor(id, color, dot) {
+    dot.style.background = color;
+    dot.dataset.color = color;
+    try {
+      await api(`sources/${id}`, { method: "PATCH", body: { color } });
+    } catch (err) { uiAlert(err.data?.detail || "Could not update color.", { type: "error" }); }
   }
 
   async function deleteSource(id, label) {
@@ -46,7 +54,7 @@
     try {
       await api(`sources/${id}/delete`, { method: "DELETE" });
       location.reload();
-    } catch (err) { alert(err.data?.detail || "Delete failed."); }
+    } catch (err) { uiAlert(err.data?.detail || "Delete failed.", { type: "error" }); }
   }
 
   async function addSource() {
@@ -55,7 +63,7 @@
     try {
       await api("sources/create", { method: "POST", body: { label: name } });
       location.reload();
-    } catch (err) { alert(err.data?.detail || "Failed to add source."); }
+    } catch (err) { uiAlert(err.data?.detail || "Failed to add source.", { type: "error" }); }
   }
 
   // Drag reorder

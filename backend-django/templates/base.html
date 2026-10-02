@@ -8,48 +8,204 @@
   <meta name="ws-token" content="{{ ws_token }}" />
   <meta name="user-role" content="{{ me.role }}" />
   <meta name="user-id" content="{{ me.id }}" />
-  <title>Quibus LMS</title>
+  <title>Momentum</title>
+  <link rel="manifest" href="{% static 'manifest.json' %}" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="icon" type="image/png" href="{% static 'img/momentum-icon-192.png' %}" />
+  <link rel="apple-touch-icon" href="{% static 'img/momentum-icon-180.png' %}" />
+  <script>
+    // Apply saved theme before first paint to avoid a flash of the wrong theme.
+    (function () { try { if (localStorage.getItem("theme") === "dark") document.documentElement.classList.add("dark"); } catch (e) {} })();
+  </script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}" />
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Lock sidebar in place on desktop (id beats lg:static; classes absent from build) */
+    @media (min-width: 1024px) {
+      #sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; }
+    }
+    .color-dot {
+      flex-shrink: 0;
+      width: 16px; height: 16px;
+      border-radius: 9999px;
+      border: none; padding: 0; cursor: pointer;
+      box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(15,23,42,.10);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .color-dot:hover { transform: scale(1.2); box-shadow: 0 0 0 2px #fff, 0 0 0 3px #0f172a; }
+    .color-dot:active { transform: scale(1.05); }
+
+    /* --- App-wide custom dropdown (replaces native <select> chrome) --- */
+    .cdd {
+      position: relative; display: block;
+      border: 0 !important; padding: 0 !important; background: transparent !important;
+      box-shadow: none !important; min-height: 0 !important;
+    }
+    .cdd--inline { display: inline-block; }
+    .cdd-trigger {
+      display: inline-flex; align-items: center; gap: 0.5rem; width: 100%;
+      border: 1px solid #cbd5e1; border-radius: 0.625rem; background: #fff;
+      padding: 0.55rem 0.75rem; font-size: 0.875rem; font-weight: 500;
+      color: #334155; cursor: pointer; text-align: left; transition: all .15s;
+    }
+    .cdd--inline .cdd-trigger { width: auto; }
+    .cdd-trigger:hover { background: #f8fafc; border-color: #94a3b8; }
+    .cdd-trigger:focus-visible { outline: none; border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15,23,42,.12); }
+    .cdd-trigger.is-placeholder .cdd-label { color: #94a3b8; font-weight: 400; }
+    .cdd-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cdd-chev { width: 1rem; height: 1rem; flex-shrink: 0; color: #94a3b8; transition: transform .15s; }
+    .cdd.open .cdd-chev { transform: rotate(180deg); }
+    .cdd-menu {
+      position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 0.75rem;
+      box-shadow: 0 12px 32px rgba(15,23,42,.14); padding: 0.375rem;
+      max-height: 280px; overflow-y: auto; z-index: 70;
+    }
+    .cdd-menu[hidden] { display: none; }
+    .cdd-option {
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.625rem;
+      border-radius: 0.5rem; font-size: 0.875rem; color: #334155; cursor: pointer; white-space: nowrap;
+    }
+    .cdd-option:hover { background: #f1f5f9; }
+    .cdd-option.selected { color: #0f172a; font-weight: 600; }
+    .cdd-check { width: 0.95rem; height: 0.95rem; flex-shrink: 0; opacity: 0; }
+    .cdd-option.selected .cdd-check { opacity: 1; }
+
+    /* ===== Dark mode (overrides the slate palette; build has no dark: variants) ===== */
+    html.dark { color-scheme: dark; }
+    html.dark body { background: #0a0e17; color: #e5e9f0; }
+    /* Cards sit a shade lighter than the page, with a real border, so surfaces read as
+       distinct layers instead of one flat block. */
+    html.dark .bg-white { background: #141b2c !important; border-color: #262f45; box-shadow: 0 1px 0 0 rgba(255,255,255,0.02) inset; }
+    html.dark .bg-slate-50 { background: #0a0e17 !important; }
+    html.dark .bg-slate-100 { background: #182035 !important; }
+    html.dark .bg-slate-200 { background: #232c44 !important; }
+    html.dark .hover\:bg-slate-50:hover { background: #1c2438 !important; }
+    html.dark .hover\:bg-slate-100:hover { background: #1c2438 !important; }
+    html.dark .hover\:bg-slate-200:hover { background: #2b3550 !important; }
+    html.dark .text-slate-900 { color: #f4f6fa !important; }
+    html.dark .text-slate-800 { color: #e5e9f0 !important; }
+    html.dark .text-slate-700 { color: #cbd5e1 !important; }
+    html.dark .text-slate-600 { color: #b6c0d1 !important; }
+    html.dark .text-slate-500 { color: #8b96ab !important; }
+    html.dark .text-slate-400 { color: #8b96ab !important; }
+    html.dark .border-slate-100 { border-color: #232c44 !important; }
+    html.dark .border-slate-200 { border-color: #29334c !important; }
+    html.dark .border-slate-300 { border-color: #384463 !important; }
+    html.dark .hover\:bg-slate-800:hover { filter: brightness(1.12); }
+    /* Custom dropdowns */
+    html.dark .cdd-trigger { background: #141b2c; border-color: #29334c; color: #e5e9f0; }
+    html.dark .cdd-trigger:hover { background: #1c2438; border-color: #384463; }
+    html.dark .cdd-menu { background: #141b2c; border-color: #29334c; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+    html.dark .cdd-option { color: #e5e9f0; }
+    html.dark .cdd-option:hover { background: #1c2438; }
+    html.dark .cdd-option.selected { color: #ffffff; }
+    /* Form fields */
+    html.dark input, html.dark textarea, html.dark select { background: #141b2c; color: #e5e9f0; border-color: #29334c; }
+    html.dark input::placeholder, html.dark textarea::placeholder { color: #6b7690; }
+    /* Lead modal: phone/country/source pickers use inline styles + their own <style> block,
+       so they need explicit dark over-rides rather than the generic rules above. */
+    html.dark #lm_phone_wrap { background: #141b2c !important; border-color: #29334c !important; }
+    html.dark #lm_country_btn { background: #1c2438 !important; border-color: #29334c !important; color: #cbd5e1 !important; }
+    html.dark #lm_country_menu { background: #141b2c !important; border-color: #29334c !important; }
+    html.dark #lm_country_search { background: #1c2438 !important; border-color: #29334c !important; color: #e5e9f0 !important; }
+    html.dark .lm-source-btn { background: #141b2c !important; border-color: #29334c !important; color: #cbd5e1 !important; }
+    html.dark .lm-source-btn:hover { background: #1c2438 !important; border-color: #384463 !important; }
+    html.dark .lm-source-menu { background: #141b2c !important; border-color: #29334c !important; }
+    html.dark .lm-source-item:hover { background: #1c2438 !important; }
+    html.dark .lm-source-item label { color: #cbd5e1 !important; }
+    html.dark .lm-select, html.dark .lm-select option { color: #e5e9f0 !important; }
+    /* Theme toggle: show the right icon per mode */
+    html.dark .theme-icon-light { display: none; }
+    html:not(.dark) .theme-icon-dark { display: none; }
+    /* Logo swap per mode */
+    html.dark .logo-light-mode { display: none; }
+    html:not(.dark) .logo-dark-mode { display: none; }
+
+    /* ===== Brand theme (matches the sign-in page): dark sidebar + orange primary accent ===== */
+    #sidebar {
+      background: radial-gradient(140% 100% at 15% 0%, #2a221b 0%, #17130f 55%, #100d0a 100%) !important;
+      border-right: none !important;
+    }
+    #sidebar .logo-light-mode { display: none !important; }
+    #sidebar .logo-dark-mode { display: block !important; }
+    #sidebar .text-slate-900 { color: #f8fafc !important; }
+    #sidebar .text-slate-600 { color: #b9b2a9 !important; }
+    #sidebar .hover\:bg-slate-200:hover { background: rgba(255,255,255,0.08) !important; }
+    #sidebar .hover\:text-slate-900:hover { color: #ffffff !important; }
+    #sidebar hr { border-top-color: rgba(255,255,255,0.12) !important; }
+    #sidebar .border-slate-200 { border-color: rgba(255,255,255,0.14) !important; }
+    #sidebar [data-tour="profile"] { background: #fff !important; border-color: rgba(255,255,255,0.14) !important; }
+    /* The profile card stays a white card even on the dark sidebar, so its own text
+       must stay dark too — undo the blanket sidebar text-color flip just for it. */
+    #sidebar [data-tour="profile"].text-slate-900,
+    #sidebar [data-tour="profile"] .text-slate-900 { color: #0f172a !important; }
+    #sidebar [data-tour="profile"] .text-slate-500 { color: #64748b !important; }
+
+    /* Primary action color: orange gradient everywhere (buttons, active nav pill, pagination, badges) */
+    .bg-slate-900 {
+      background: linear-gradient(90deg, #f97316, #ef4444) !important;
+      border-color: transparent !important;
+    }
+    .hover\:bg-slate-800:hover { filter: brightness(1.06); }
+    html.dark .bg-slate-900 { background: linear-gradient(90deg, #f97316, #ef4444) !important; }
+    html.dark .hover\:bg-slate-800:hover { filter: brightness(1.1); }
+
+    /* Focus rings: orange instead of indigo/slate */
+    .lm-inp:focus, input:focus, textarea:focus, select:focus {
+      border-color: #fb923c !important;
+      box-shadow: 0 0 0 3px rgba(251,146,60,0.15) !important;
+    }
+    .cdd-trigger:focus-visible { border-color: #fb923c !important; box-shadow: 0 0 0 3px rgba(251,146,60,0.15) !important; }
+  </style>
+  <script src="{% static 'js/lucide.min.js' %}"></script>
 </head>
 <body class="bg-slate-50 text-slate-900">
 <div class="flex min-h-screen">
   <!-- Sidebar -->
-  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transform bg-slate-900 p-4 transition-transform lg:static lg:translate-x-0">
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transform border-r border-slate-200 bg-slate-100 p-4 transition-transform lg:static lg:translate-x-0">
     <div class="mb-8 flex items-center gap-2.5 px-2">
-      <i data-lucide="target" class="h-7 w-7 text-indigo-400"></i>
-      <span class="text-lg font-bold text-white">Quibus LMS</span>
+      <img src="{% static 'img/momentum-logo-dark.png' %}" alt="Momentum" class="logo-light-mode h-7 w-auto" />
+      <img src="{% static 'img/momentum-logo-white.png' %}" alt="Momentum" class="logo-dark-mode h-7 w-auto" />
+      <span class="text-lg font-bold text-slate-900">Momentum</span>
     </div>
     <nav class="space-y-1">
-      {% with cls="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition" on="bg-indigo-600 text-white" off="text-slate-300 hover:bg-slate-700 hover:text-white" %}
-      <a href="/" class="{{ cls }} {% if active == 'dashboard' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="layout-dashboard" class="h-5 w-5"></i> Dashboard</a>
-      <a href="/pipeline" class="{{ cls }} {% if active == 'pipeline' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="kanban-square" class="h-5 w-5"></i> Pipeline</a>
-      <a href="/leads" class="{{ cls }} {% if active == 'leads' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="users" class="h-5 w-5"></i> Leads</a>
-      <a href="/tasks" class="{{ cls }} {% if active == 'tasks' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="check-square" class="h-5 w-5"></i> Follow-ups</a>
-      <a href="/templates" class="{{ cls }} {% if active == 'templates' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="mail" class="h-5 w-5"></i> Email Templates</a>
-      <a href="/reports" class="{{ cls }} {% if active == 'reports' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="trending-up" class="h-5 w-5"></i> Reports</a>
+      {% with cls="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition" on="bg-slate-900 text-white shadow-sm" off="text-slate-600 hover:bg-slate-200 hover:text-slate-900" %}
+      <a href="/" data-tour="dashboard" class="{{ cls }} {% if active == 'dashboard' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="home" class="h-5 w-5"></i> Dashboard</a>
+      <button type="button" onclick="toggleProductsGroup()" data-tour="leads" class="{{ cls }} w-full justify-between {% if active == 'leads' %}{{ on }}{% else %}{{ off }}{% endif %}">
+        <span class="flex items-center gap-3"><i data-lucide="users" class="h-5 w-5"></i> Leads</span>
+        <i data-lucide="chevron-down" id="productsChevron" class="h-4 w-4 transition-transform"></i>
+      </button>
+      <div id="productsGroup" class="ml-3 space-y-1 border-l border-slate-200 pl-3">
+        <a href="/leads" style="padding-left:1.75rem;{% if active == 'leads' and not active_product_id %}background:linear-gradient(90deg,#f97316,#ef4444);{% endif %}" class="{{ cls }} {% if active == 'leads' and not active_product_id %}text-white{% else %}{{ off }}{% endif %}"><i data-lucide="layers" class="h-4 w-4"></i> All Leads</a>
+        {% for p in nav_products %}
+        <a href="/leads?product={{ p.id }}" style="padding-left:1.75rem;{% if active_product_id == p.id %}background:linear-gradient(90deg,#f97316,#ef4444);{% endif %}" class="{{ cls }} {% if active_product_id == p.id %}text-white{% else %}{{ off }}{% endif %}"><i data-lucide="{% if p.kind == 'service' %}wrench{% else %}package{% endif %}" class="h-4 w-4"></i> {{ p.name }}</a>
+        {% endfor %}
+      </div>
+      <a href="/pipeline" data-tour="pipeline" class="{{ cls }} {% if active == 'pipeline' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="kanban-square" class="h-5 w-5"></i> Pipeline</a>
+      <a href="/tasks" data-tour="tasks" class="{{ cls }} {% if active == 'tasks' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="check-square" class="h-5 w-5"></i> Follow-ups</a>
+      <a href="/students" data-tour="students" class="{{ cls }} {% if active == 'students' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="graduation-cap" class="h-5 w-5"></i> Students</a>
+      <hr style="margin:0.75rem 0; border:0; border-top:1px solid #e2e8f0;" />
       {% if me.role == 'admin' %}
-      <button type="button" onclick="toggleMastersGroup()" class="{{ cls }} w-full justify-between {% if active == 'masters' or active == 'funnel' or active == 'sources' or active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}">
+      <button type="button" onclick="toggleMastersGroup()" data-tour="masters" class="{{ cls }} w-full justify-between {% if active == 'masters' or active == 'funnel' or active == 'sources' or active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}">
         <span class="flex items-center gap-3"><i data-lucide="folder-cog" class="h-5 w-5"></i> SuperAdmin Masters</span>
         <i data-lucide="chevron-down" id="mastersChevron" class="h-4 w-4 transition-transform"></i>
       </button>
-      <div id="mastersGroup" class="ml-3 space-y-1 border-l border-slate-700 pl-3">
-        <a href="/funnel" class="{{ cls }} {% if active == 'funnel' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="filter" class="h-4 w-4"></i> Lead Funnel</a>
-        <a href="/sources" class="{{ cls }} {% if active == 'sources' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="tag" class="h-4 w-4"></i> Source Master</a>
-        <a href="/products" class="{{ cls }} {% if active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="package" class="h-4 w-4"></i> Products &amp; Services</a>
-        <a href="/masters/profiles" class="{{ cls }} {% if active == 'masters' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="user-cog" class="h-4 w-4"></i> Customer Profile</a>
+      <div id="mastersGroup" class="ml-3 space-y-1 border-l border-slate-200 pl-3">
+        <a href="/products" style="padding-left:1.75rem;" class="{{ cls }} {% if active == 'products' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="package" class="h-4 w-4"></i> Products &amp; Services</a>
+        <a href="/funnel" style="padding-left:1.75rem;" class="{{ cls }} {% if active == 'funnel' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="filter" class="h-4 w-4"></i> Lead Funnel</a>
+        <a href="/sources" style="padding-left:1.75rem;" class="{{ cls }} {% if active == 'sources' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="tag" class="h-4 w-4"></i> Source Master</a>
+        <a href="/masters/profiles" style="padding-left:1.75rem;" class="{{ cls }} {% if active == 'masters' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="user-cog" class="h-4 w-4"></i> Customer Profile</a>
       </div>
-      <a href="/users" class="{{ cls }} {% if active == 'users' %}{{ on }}{% else %}{{ off }}{% endif %}"><i data-lucide="shield-check" class="h-5 w-5"></i> Team &amp; Roles</a>
       {% endif %}
       {% endwith %}
     </nav>
     <div class="absolute bottom-4 left-4 right-4">
-      <div class="rounded-lg bg-slate-800 p-3 text-sm">
-        <div class="font-semibold text-white">{{ me.name }}</div>
-        <div class="capitalize text-slate-400">{{ me.role }}</div>
+      <div data-tour="profile" class="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+        <div class="font-semibold text-slate-900">{{ me.name }}</div>
+        <div class="capitalize text-slate-500">{{ me.role }}</div>
         <div class="mt-2 flex gap-2">
-          <a href="/profile" class="rounded bg-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-600">Profile</a>
-          <a href="/logout" class="rounded bg-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-600">Sign out</a>
+          <a href="/profile" class="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100">Profile</a>
+          <a href="/logout" class="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100">Sign out</a>
         </div>
       </div>
     </div>
@@ -61,19 +217,24 @@
     <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
       <button id="menuBtn" class="rounded p-2 hover:bg-slate-100 lg:hidden"><i data-lucide="menu" class="h-5 w-5"></i></button>
       <div class="hidden text-sm text-slate-500 lg:block">Lead Management &amp; CRM</div>
+      <div class="flex items-center gap-1">
+        <button id="themeToggle" onclick="toggleTheme()" data-tour="theme" class="rounded-full p-2 hover:bg-slate-100" title="Toggle dark mode">
+          <i data-lucide="moon" class="theme-icon-light h-5 w-5 text-slate-600"></i>
+          <i data-lucide="sun" class="theme-icon-dark h-5 w-5 text-slate-300"></i>
+        </button>
       <div class="relative">
-        <button id="bellBtn" class="relative rounded-full p-2 hover:bg-slate-100" title="Notifications">
+        <button id="bellBtn" data-tour="notifications" class="relative rounded-full p-2 hover:bg-slate-100" title="Notifications">
           <i data-lucide="bell" class="h-5 w-5 text-slate-600"></i>
-          <span id="unreadBadge" class="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white {% if unread_count == 0 %}hidden{% endif %}">{{ unread_count }}</span>
+          <span id="unreadBadge" class="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white {% if unread_count == 0 %}hidden{% endif %}" style="font-size:9px;font-weight:700;">{{ unread_count }}</span>
         </button>
         <div id="notifPanel" class="absolute right-0 mt-2 hidden w-80 rounded-xl border border-slate-200 bg-white shadow-xl">
           <div class="flex items-center justify-between border-b border-slate-100 px-4 py-2">
             <span class="text-sm font-semibold">Notifications</span>
-            <button id="markRead" class="text-xs text-indigo-600 hover:underline">Mark all read</button>
+            <button id="markRead" class="text-xs text-slate-900 hover:underline">Mark all read</button>
           </div>
           <div id="notifList" class="max-h-80 overflow-y-auto">
             {% for n in notifications %}
-            <div class="border-b border-slate-50 px-4 py-2 text-sm {% if not n.read_at %}bg-indigo-50{% endif %}">
+            <div class="border-b border-slate-50 px-4 py-2 text-sm {% if not n.read_at %}bg-slate-100{% endif %}">
               <div>{{ n.data.message }}</div>
               <div class="text-xs text-slate-400">{{ n.created_at }}</div>
             </div>
@@ -83,6 +244,7 @@
           </div>
         </div>
       </div>
+      </div>
     </header>
     <main class="flex-1 p-4 lg:p-6">
       {% block content %}{% endblock %}
@@ -90,12 +252,25 @@
   </div>
 </div>
 {% include "partials/ui_modal.html" %}
-<script src="{% static 'js/app.js' %}"></script>
+{% include "partials/tour.html" %}
+<script src="{% static 'js/app.js' %}?v={% now 'U' %}"></script>
 {% block page_js %}{% endblock %}
 <script>
+  function toggleTheme() {
+    const dark = document.documentElement.classList.toggle("dark");
+    try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch (e) {}
+  }
   function toggleMastersGroup() {
     const g = document.getElementById("mastersGroup");
     const c = document.getElementById("mastersChevron");
+    if (!g) return;
+    const open = g.style.display !== "none";
+    g.style.display = open ? "none" : "block";
+    if (c) c.style.transform = open ? "rotate(-90deg)" : "rotate(0deg)";
+  }
+  function toggleProductsGroup() {
+    const g = document.getElementById("productsGroup");
+    const c = document.getElementById("productsChevron");
     if (!g) return;
     const open = g.style.display !== "none";
     g.style.display = open ? "none" : "block";
@@ -110,6 +285,158 @@
       g.style.display = "none";
       if (c) c.style.transform = "rotate(-90deg)";
     }
+    // Leads group: collapsed unless currently on a leads page.
+    const pg = document.getElementById("productsGroup");
+    const pc = document.getElementById("productsChevron");
+    if (pg && active !== "leads") {
+      pg.style.display = "none";
+      if (pc) pc.style.transform = "rotate(-90deg)";
+    }
+  })();
+
+  // --- Shared color picker popover (used by Masters pages: funnel, sources, products, profiles) ---
+  const COLOR_SWATCHES = [
+    "#6366f1", "#3b82f6", "#0ea5e9", "#06b6d4", "#14b8a6", "#22c55e", "#84cc16",
+    "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#a855f7", "#64748b", "#0f172a",
+  ];
+  function closeColorPopover() {
+    document.getElementById("colorPopover")?.remove();
+    document.getElementById("colorPopoverScrim")?.remove();
+    document.removeEventListener("keydown", _colorPopoverEsc, true);
+  }
+  function _colorPopoverEsc(e) { if (e.key === "Escape") closeColorPopover(); }
+  function openColorPicker(anchorEl, current, onSelect) {
+    closeColorPopover();
+    // Invisible click-catcher, just to close the popover on an outside click — no visual dimming.
+    const scrim = document.createElement("div");
+    scrim.id = "colorPopoverScrim";
+    scrim.style.cssText = "position:fixed;inset:0;z-index:79;background:transparent;";
+    scrim.addEventListener("click", closeColorPopover);
+    document.body.appendChild(scrim);
+    const pop = document.createElement("div");
+    pop.id = "colorPopover";
+    pop.style.cssText = "position:fixed;z-index:80;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 18px 44px rgba(15,23,42,.18);padding:14px;width:216px;";
+    pop.innerHTML = `
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Pick a color</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:12px;">
+        ${COLOR_SWATCHES.map((c) => `<button type="button" data-color="${c}" title="${c}" aria-label="${c}" style="width:22px;height:22px;border-radius:50%;background:${c};border:2px solid ${c.toLowerCase() === String(current).toLowerCase() ? "#0f172a" : "transparent"};box-shadow:0 0 0 1px rgba(15,23,42,.08);cursor:pointer;padding:0;transition:transform .1s ease;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></button>`).join("")}
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;border-top:1px solid #f1f5f9;padding-top:10px;cursor:pointer;">
+        <span style="position:relative;width:22px;height:22px;border-radius:50%;border:1.5px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:#f8fafc;">
+          <input type="color" value="${current}" style="position:absolute;inset:-6px;width:34px;height:34px;cursor:pointer;opacity:0;" />
+          <i data-lucide="pipette" style="width:11px;height:11px;color:#64748b;pointer-events:none;"></i>
+        </span>
+        <span style="font-size:12px;font-weight:500;color:#64748b;">Custom color…</span>
+      </label>
+    `;
+    document.body.appendChild(pop);
+    // Anchor to the whole row (not just the dot) so the popover's left edge lines up
+    // with — and fully covers — anything stacked directly underneath it (e.g. an
+    // "Add stage" button), instead of leaving a sliver of it peeking out.
+    const row = anchorEl.closest('[class*="-row"]') || anchorEl;
+    const rect = row.getBoundingClientRect();
+    const dotRect = anchorEl.getBoundingClientRect();
+    const pr = pop.getBoundingClientRect();
+    let top = dotRect.bottom + 8, left = rect.left;
+    if (left + pr.width > window.innerWidth - 8) left = window.innerWidth - pr.width - 8;
+    if (top + pr.height > window.innerHeight - 8) top = dotRect.top - pr.height - 8;
+    pop.style.top = `${Math.max(8, top)}px`;
+    pop.style.left = `${Math.max(8, left)}px`;
+    lucide.createIcons();
+    pop.querySelectorAll("button[data-color]").forEach((btn) => {
+      btn.addEventListener("click", () => { onSelect(btn.dataset.color); closeColorPopover(); });
+    });
+    const customInput = pop.querySelector('input[type="color"]');
+    customInput.addEventListener("input", (e) => onSelect(e.target.value));
+    customInput.addEventListener("change", () => closeColorPopover());
+    document.addEventListener("keydown", _colorPopoverEsc, true);
+  }
+</script>
+<script>
+  // --- App-wide custom dropdown enhancer ---------------------------------
+  // Progressively replaces every native <select> with a styled trigger + menu
+  // (the "All sources" look), while keeping the real <select> in the DOM so
+  // form submission, .value reads and change listeners all keep working.
+  (function () {
+    const CHEV = '<svg class="cdd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    const CHECK = '<svg class="cdd-check" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+    function closeAll() {
+      document.querySelectorAll(".cdd.open").forEach((w) => {
+        w.classList.remove("open");
+        const m = w.querySelector(".cdd-menu"); if (m) m.hidden = true;
+      });
+    }
+    function enhance(sel) {
+      if (sel.multiple || sel.dataset.noEnhance !== undefined || sel.dataset.cdd) return;
+      sel.dataset.cdd = "1";
+      const fullWidth = sel.classList.contains("lm-inp") || /\b(w-full|col-span)/.test(sel.className);
+      const wrap = document.createElement("div");
+      wrap.className = "cdd " + sel.className;
+      if (!fullWidth) wrap.classList.add("cdd--inline");
+      sel.parentNode.insertBefore(wrap, sel);
+      wrap.appendChild(sel);
+      sel.style.display = "none";
+
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "cdd-trigger";
+      trigger.innerHTML = '<span class="cdd-label"></span>' + CHEV;
+      wrap.appendChild(trigger);
+
+      const menu = document.createElement("div");
+      menu.className = "cdd-menu";
+      menu.hidden = true;
+      wrap.appendChild(menu);
+
+      function buildOptions() {
+        menu.innerHTML = "";
+        [...sel.options].forEach((opt, i) => {
+          const o = document.createElement("div");
+          o.className = "cdd-option" + (i === sel.selectedIndex ? " selected" : "");
+          o.innerHTML = CHECK + "<span>" + esc(opt.textContent) + "</span>";
+          o.addEventListener("click", () => {
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            syncLabel();
+            wrap.classList.remove("open"); menu.hidden = true;
+          });
+          menu.appendChild(o);
+        });
+      }
+      function syncLabel() {
+        const opt = sel.options[sel.selectedIndex];
+        trigger.querySelector(".cdd-label").textContent = opt ? opt.textContent : "";
+        trigger.classList.toggle("is-placeholder", !opt || opt.value === "");
+      }
+      trigger.addEventListener("click", (e) => {
+        e.preventDefault();
+        const willOpen = menu.hidden;
+        closeAll();
+        if (willOpen) { buildOptions(); menu.hidden = false; wrap.classList.add("open"); }
+      });
+      sel.addEventListener("change", syncLabel);
+      wrap._cddSync = syncLabel;
+      syncLabel();
+    }
+    window.enhanceDropdowns = function (root) { (root || document).querySelectorAll("select").forEach(enhance); };
+    window.refreshDropdowns = function (root) { (root || document).querySelectorAll(".cdd").forEach((w) => w._cddSync && w._cddSync()); };
+    // Capture phase so a click anywhere closes open dropdowns even inside containers
+    // that stopPropagation() on click (e.g. the lead modal).
+    document.addEventListener("click", (e) => { if (!e.target.closest(".cdd")) closeAll(); }, true);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAll(); });
+
+    function init() { window.enhanceDropdowns(); }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+    else init();
+    // Pick up selects added to the DOM later (panels, dynamic rows, etc.)
+    new MutationObserver((muts) => {
+      muts.forEach((m) => m.addedNodes.forEach((n) => {
+        if (n.nodeType !== 1) return;
+        if (n.tagName === "SELECT") enhance(n);
+        if (n.querySelectorAll) n.querySelectorAll("select").forEach(enhance);
+      }));
+    }).observe(document.documentElement, { childList: true, subtree: true });
   })();
 </script>
 <script>lucide.createIcons();</script>

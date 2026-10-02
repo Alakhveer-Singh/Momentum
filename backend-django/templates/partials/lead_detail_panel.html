@@ -1,0 +1,356 @@
+{% load lms_extras %}
+<!-- Lead detail side panel (shared by Leads and Pipeline pages) -->
+<div id="leadPanel" style="position:fixed;right:0;top:0;height:100vh;width:500px;background:#fff;border-left:1px solid #e2e8f0;box-shadow:-4px 0 24px rgba(0,0,0,.1);z-index:40;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;">
+  <div style="flex-shrink:0;background:#fff;border-bottom:1px solid #e2e8f0;padding:20px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+    <div style="min-width:0;flex:1;">
+      <h2 id="panelTitle" style="font-weight:700;font-size:18px;line-height:1.35;word-break:break-word;color:#0f172a;margin:0;"></h2>
+    </div>
+    <div style="flex-shrink:0;display:flex;gap:4px;margin-top:2px;">
+      <button onclick="editLeadFromPanel()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;border-radius:6px;" onmouseover="this.style.color='#4f46e5';this.style.background='#eef2ff'" onmouseout="this.style.color='#94a3b8';this.style.background='none'" title="Edit lead"><i data-lucide="pencil" class="h-5 w-5"></i></button>
+      {% if can_delete %}<button id="panelDeleteBtn" style="background:none;border:none;cursor:pointer;color:#cbd5e1;padding:4px;border-radius:6px;" onmouseover="this.style.color='#dc2626';this.style.background='#fef2f2'" onmouseout="this.style.color='#cbd5e1';this.style.background='none'" title="Delete lead"><i data-lucide="trash-2" class="h-5 w-5"></i></button>{% endif %}
+      <button onclick="closeLeadPanel()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;border-radius:6px;" onmouseover="this.style.color='#475569';this.style.background='#f1f5f9'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+  </div>
+  <div id="leadPanelContent" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:12px;"></div>
+</div>
+<div id="panelOverlay" class="fixed inset-0 bg-black/40 hidden z-30" onclick="closeLeadPanel()"></div>
+
+<!-- Follow-up modal -->
+<div id="fuOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:60;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px);">
+  <div style="background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.25);width:100%;max-width:360px;overflow:hidden;">
+    <div style="padding:20px 24px 14px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-weight:700;font-size:17px;color:#0f172a;">New Follow-up</div>
+      <div id="fuLeadName" style="font-size:13px;color:#94a3b8;margin-top:2px;"></div>
+    </div>
+
+    <div style="padding:18px 24px;">
+      <!-- Calendar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <button type="button" onclick="fuMonth(-1)" style="background:#f1f5f9;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;line-height:1;">‹</button>
+        <div id="fuMonthLabel" style="font-weight:600;font-size:14px;color:#0f172a;"></div>
+        <button type="button" onclick="fuMonth(1)" style="background:#f1f5f9;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;line-height:1;">›</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px;">
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Su</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Mo</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Tu</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">We</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Th</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Fr</div>
+        <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Sa</div>
+      </div>
+      <div id="fuGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+
+      <!-- Time -->
+      <div style="margin-top:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Time</label>
+        <input id="fuTime" type="time" style="width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;font-size:14px;color:#0f172a;outline:none;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'" />
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;padding:14px 24px 18px;border-top:1px solid #f1f5f9;">
+      <button type="button" onclick="closeFollowupModal()" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button type="button" onclick="saveFollowup()" style="flex:1;background:#10b981;color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const panelStages = [{% for s in stages %}{"id":{{ s.id }},"name":"{{ s.name|escapejs }}","color":"{{ s.color }}"}{% if not forloop.last %},{% endif %}{% endfor %}];
+  function panelPretty(s) { return (s||'').replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()); }
+  function panelScoreColor(n) { return n>=70?'#16a34a':n>=40?'#d97706':'#dc2626'; }
+  const PANEL_PROFILE_KEYS = ["gender","dob","whatsapp","education","qualification","guardian_name",
+    "guardian_occupation","current_address","guardian_number","permanent_address",
+    "batch_time","batch_number","batch_start"];
+
+  const ACT_COLOR = {call:'#3b82f6',email:'#8b5cf6',meeting:'#059669',note:'#f59e0b',stage_change:'#6366f1',task:'#64748b'};
+  const ACT_LABEL = {call:'Call',email:'Email',meeting:'Meeting',note:'Note',stage_change:'Stage',task:'Task'};
+
+  let panelLeadId = null;
+  let panelLead = null;
+  async function openLeadPanel(id) {
+    panelLeadId = id;
+    document.getElementById("leadPanel").style.transform = "translateX(0)";
+    document.getElementById("panelOverlay").classList.remove("hidden");
+    document.getElementById("panelTitle").textContent = "Loading…";
+    document.getElementById("panelSubtitle")?.remove();
+    document.getElementById("leadPanelContent").innerHTML = '<div style="color:#94a3b8;padding:24px;text-align:center;">Loading…</div>';
+
+    const lead = await api(`leads/${id}`);
+    panelLead = lead;
+    document.getElementById("panelTitle").textContent = lead.full_name;
+    if (lead.job_title) {
+      document.getElementById("panelTitle").insertAdjacentHTML("afterend",
+        `<div id="panelSubtitle" style="font-size:13px;color:#94a3b8;font-weight:400;margin-top:1px;">${lead.job_title}</div>`);
+    }
+
+    const stageById = {};
+    panelStages.forEach((s) => { stageById[s.id] = s; });
+    if (lead.stage) stageById[lead.stage.id] = stageById[lead.stage.id] || lead.stage;
+    const nameById = {};
+    const changes = (lead.activities || [])
+      .filter((a) => a.type === "stage_change" && a.metadata)
+      .sort((a, b) => new Date(a.occurred_at || a.created_at) - new Date(b.occurred_at || b.created_at));
+    changes.forEach((a) => {
+      const m = /^(.+?)\s*(?:→|->)\s*(.+)$/.exec(a.subject || "");
+      if (m) {
+        if (a.metadata.from != null) nameById[a.metadata.from] = m[1].trim();
+        if (a.metadata.to != null) nameById[a.metadata.to] = m[2].trim();
+      }
+    });
+    let journey = changes.length
+      ? [changes[0].metadata.from, ...changes.map((a) => a.metadata.to)].filter((v) => v != null)
+      : [lead.stage_id];
+    if (journey[journey.length - 1] !== lead.stage_id) journey.push(lead.stage_id);
+
+    const stageButtons = journey.map((sid, i) => {
+      const s = stageById[sid] || { id: sid, name: nameById[sid] || "—", color: "#94a3b8" };
+      const active = i === journey.length - 1;
+      const chip = active
+        ? `<span onclick="panelChangeStage(${id},${s.id})" style="background:${s.color};color:#fff;border-radius:8px;padding:3px 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">${s.name}</span>`
+        : `<span onclick="panelChangeStage(${id},${s.id})" style="color:${s.color};font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;padding:3px 4px;border-radius:8px;transition:background .12s;" onmouseover="this.style.background='${s.color}14'" onmouseout="this.style.background='transparent'">${s.name}</span>`;
+      const sep = i < journey.length - 1 ? `<span style="color:#cbd5e1;font-size:13px;">›</span>` : "";
+      return chip + sep;
+    }).join("");
+
+    const cfRows = Object.entries(lead.custom_fields||{}).filter(([k])=>!PANEL_PROFILE_KEYS.includes(k) && k!=='sources').map(([k,v])=>
+      `<div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">${panelPretty(k)}</dt><dd style="font-weight:500;text-align:right;">${v===true?'Yes':v===false?'No':v}</dd></div>`
+    ).join('');
+
+    const tasksHTML = `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Follow-ups</div>
+          <button onclick="showAddFollowup()" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;">+ Add</button>
+        </div>
+        ${(lead.tasks||[]).length ? (lead.tasks||[]).map(t=>`
+          <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #f8fafc;">
+            <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${t.status==='completed'?'#22c55e':'#f97316'};"></div>
+            <div style="flex:1;font-size:13px;color:${t.status==='completed'?'#94a3b8':'#1e293b'};${t.status==='completed'?'text-decoration:line-through;':''};">${t.title}</div>
+            ${t.due_at?`<div style="font-size:11px;color:#94a3b8;flex-shrink:0;">${new Date(t.due_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div>`:''}
+          </div>`).join('') : '<div style="font-size:13px;color:#94a3b8;padding:4px 0;">No follow-ups yet.</div>'}
+      </div>`;
+
+    const actHTML = (lead.activities||[]).length
+      ? (lead.activities||[]).map(a=>`
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #f8fafc;">
+            <div style="flex-shrink:0;margin-top:2px;">
+              <span style="display:inline-block;background:${ACT_COLOR[a.type]||'#94a3b8'}18;color:${ACT_COLOR[a.type]||'#94a3b8'};border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;letter-spacing:.02em;">${ACT_LABEL[a.type]||'Activity'}</span>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:500;color:#1e293b;font-size:13px;">${a.subject}</div>
+              ${a.description?`<div style="color:#64748b;font-size:12px;margin-top:2px;">${a.description}</div>`:''}
+              <div style="color:#94a3b8;font-size:11px;margin-top:3px;">${a.user?.name||'System'} &middot; ${new Date(a.occurred_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+          </div>`).join('')
+      : '<div style="color:#94a3b8;font-size:13px;">No activities yet.</div>';
+
+    document.getElementById("leadPanelContent").innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">${stageButtons}</div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+        <div style="position:relative;display:inline-block;flex:0 1 auto;">
+          <button type="button" onclick="togglePanelSourceMenu(event)" style="display:inline-flex;align-items:center;gap:8px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:6px 10px;font-size:12px;font-weight:500;color:#475569;cursor:pointer;transition:all .15s;white-space:nowrap;">
+            <i data-lucide="layers" style="width:14px;height:14px;stroke-width:2.5;flex-shrink:0;"></i>
+            <span id="pnl_source_label">${lead.source.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>
+            <i data-lucide="chevron-down" style="width:12px;height:12px;flex-shrink:0;"></i>
+          </button>
+          <div id="pnl_source_menu" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.1);padding:6px;min-width:180px;z-index:50;">
+            {% for s in sources %}<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;font-size:12px;color:#475569;cursor:pointer;transition:background .1s;user-select:none;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'"><input type="checkbox" class="pnl-source-check" value="{{ s }}" style="margin:0;accent-color:#6366f1;cursor:pointer;" onchange="updatePanelSourceLabel(${id}, this)" /><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#6366f1;flex-shrink:0;"></span>{{ s|pretty }}</label>{% endfor %}
+          </div>
+        </div>
+        <span style="background:${panelScoreColor(lead.score)}18;color:${panelScoreColor(lead.score)};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">Score ${lead.score}/100</span>
+        ${lead.value&&lead.value!=='0.00'?`<span style="background:#eff6ff;color:#3b82f6;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">₹${Number(lead.value).toLocaleString('en-IN')}</span>`:''}
+      </div>
+
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Details</div>
+        <dl style="font-size:14px;display:grid;gap:10px;">
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Email</dt><dd style="font-weight:500;text-align:right;word-break:break-all;">${lead.email||'—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Phone</dt><dd style="font-weight:500;">${lead.phone||'—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Owner</dt><dd style="font-weight:500;">${lead.owner?.name||'—'}</dd></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Created</dt><dd style="font-weight:500;">${new Date(lead.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>
+          ${lead.last_activity_at?`<div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Last activity</dt><dd style="font-weight:500;">${new Date(lead.last_activity_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>`:''}
+          ${cfRows}
+        </dl>
+        ${lead.notes?`<div style="margin-top:12px;padding:10px;background:#f8fafc;border-radius:8px;font-size:13px;color:#475569;border-left:3px solid #6366f1;">${lead.notes}</div>`:''}
+      </div>
+
+      ${tasksHTML}
+
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;">
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Log Activity</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="pnl_type" style="appearance:none;-webkit-appearance:none;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;color:#475569;background:#fff;cursor:pointer;outline:none;">
+            <option value="call">Call</option><option value="meeting">Meeting</option><option value="email">Email</option><option value="note">Note</option>
+          </select>
+          <input id="pnl_subject" placeholder="Subject *" style="flex:1;min-width:120px;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelLogActivity(${id})" />
+          <button onclick="panelLogActivity(${id})" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Log</button>
+        </div>
+      </div>
+
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;margin-bottom:8px;">
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Activity Timeline</div>
+        <div style="font-size:13px;">${actHTML}</div>
+      </div>
+    `;
+    lucide.createIcons();
+    const savedSources = (lead.custom_fields && lead.custom_fields.sources) || (lead.source ? [lead.source] : []);
+    document.querySelectorAll(".pnl-source-check").forEach(cb => { cb.checked = savedSources.includes(cb.value); });
+    renderPanelSourceLabel();
+  }
+
+  function togglePanelSourceMenu(e) {
+    e.preventDefault();
+    const menu = document.getElementById("pnl_source_menu");
+    if (menu) menu.style.display = menu.style.display === "none" ? "block" : "none";
+  }
+  function renderPanelSourceLabel() {
+    const checked = [...document.querySelectorAll(".pnl-source-check:checked")];
+    const label = document.getElementById("pnl_source_label");
+    if (!label) return;
+    if (!checked.length) { label.textContent = "Select source…"; return; }
+    if (checked.length === 1) {
+      label.textContent = checked[0].value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    } else {
+      label.textContent = `${checked.length} sources`;
+    }
+  }
+  async function updatePanelSourceLabel(leadId, cb) {
+    renderPanelSourceLabel();
+    const checked = [...document.querySelectorAll(".pnl-source-check:checked")].map(c => c.value);
+    let primary = (cb && cb.checked) ? cb.value : (checked[checked.length - 1] || "");
+    const sources = primary ? [primary, ...checked.filter(s => s !== primary)] : checked;
+    const cf = { ...(panelLead && panelLead.custom_fields || {}), sources };
+    const body = { source: primary, custom_fields: cf };
+    if (panelLead) { panelLead.source = primary; panelLead.custom_fields = cf; }
+    await api(`leads/${leadId}`, { method: "PUT", body });
+    const rowSel = document.querySelector(`.lead-row[data-id="${leadId}"] select`);
+    if (rowSel && primary) rowSel.value = primary;
+  }
+  document.addEventListener("click", (e) => {
+    const menu = document.getElementById("pnl_source_menu");
+    if (menu && menu.style.display !== "none" && !menu.contains(e.target) && !e.target.closest("button[onclick*='togglePanelSourceMenu']")) {
+      menu.style.display = "none";
+    }
+  });
+
+  async function panelChangeStage(leadId, stageId) {
+    await api(`leads/${leadId}`, { method: "PUT", body: { stage_id: stageId } });
+    openLeadPanel(leadId);
+    const row = document.querySelector(`.lead-row[data-id="${leadId}"]`);
+    if (row) {
+      const stg = panelStages.find(s=>s.id===stageId);
+      if (stg) {
+        const sel = row.querySelector('select:last-of-type');
+        if (sel) { sel.parentElement.querySelector('select').style.background = stg.color; sel.value = stageId; }
+      }
+    }
+    if (typeof onPanelStageChanged === "function") onPanelStageChanged(leadId, stageId);
+  }
+
+  async function panelLogActivity(leadId) {
+    const subject = document.getElementById("pnl_subject")?.value?.trim();
+    if (!subject) { document.getElementById("pnl_subject")?.focus(); return; }
+    const btn = document.querySelector(`button[onclick="panelLogActivity(${leadId})"]`);
+    if (btn) btn.textContent = "…";
+    await api("activities", { method: "POST", body: {
+      type: document.getElementById("pnl_type").value, subject, lead_id: leadId }});
+    openLeadPanel(leadId);
+  }
+
+  // --- Follow-up modal with custom calendar -------------------------------
+  const panelFuPad = n => String(n).padStart(2, '0');
+  let fuViewDate = new Date();
+  let fuSelected = null;
+
+  function showAddFollowup() {
+    if (!panelLeadId) return;
+    const leadName = document.getElementById("panelTitle")?.textContent?.trim() || "Lead";
+    document.getElementById("fuLeadName").textContent = `Follow-up: ${leadName}`;
+    const def = new Date(Date.now() + 30 * 60000);
+    fuViewDate = new Date(def.getFullYear(), def.getMonth(), 1);
+    fuSelected = new Date(def.getFullYear(), def.getMonth(), def.getDate());
+    document.getElementById("fuTime").value = `${panelFuPad(def.getHours())}:${panelFuPad(def.getMinutes())}`;
+    renderFuCalendar();
+    document.getElementById("fuOverlay").style.display = "flex";
+  }
+
+  function closeFollowupModal() {
+    document.getElementById("fuOverlay").style.display = "none";
+  }
+
+  function fuMonth(delta) {
+    fuViewDate = new Date(fuViewDate.getFullYear(), fuViewDate.getMonth() + delta, 1);
+    renderFuCalendar();
+  }
+
+  function renderFuCalendar() {
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    document.getElementById("fuMonthLabel").textContent = `${months[fuViewDate.getMonth()]} ${fuViewDate.getFullYear()}`;
+    const year = fuViewDate.getFullYear(), month = fuViewDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date(); today.setHours(0,0,0,0);
+    const grid = document.getElementById("fuGrid");
+    let html = "";
+    for (let i = 0; i < firstDay; i++) html += `<div></div>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cur = new Date(year, month, d);
+      const isSel = fuSelected && cur.getTime() === new Date(fuSelected.getFullYear(), fuSelected.getMonth(), fuSelected.getDate()).getTime();
+      const isToday = cur.getTime() === today.getTime();
+      const isPast = cur < today;
+      let bg = "transparent", color = isPast ? "#cbd5e1" : "#334155", fw = "500", ring = "";
+      if (isSel) { bg = "#6366f1"; color = "#fff"; fw = "700"; }
+      else if (isToday) { ring = "box-shadow:inset 0 0 0 1.5px #c7d2fe;"; color = "#6366f1"; fw = "600"; }
+      const cursor = isPast ? "not-allowed" : "pointer";
+      const onclick = isPast ? "" : `onclick="fuPick(${year},${month},${d})"`;
+      const hover = isPast || isSel ? "" : `onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='${bg}'"`;
+      html += `<div ${onclick} ${hover} style="text-align:center;padding:8px 0;font-size:13px;font-weight:${fw};color:${color};background:${bg};border-radius:8px;cursor:${cursor};${ring}transition:background .12s;">${d}</div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  function fuPick(y, m, d) {
+    fuSelected = new Date(y, m, d);
+    renderFuCalendar();
+  }
+
+  function saveFollowup() {
+    if (!panelLeadId || !fuSelected) return;
+    const time = document.getElementById("fuTime").value || "09:00";
+    const [hh, mm] = time.split(":");
+    const due = `${fuSelected.getFullYear()}-${panelFuPad(fuSelected.getMonth()+1)}-${panelFuPad(fuSelected.getDate())}T${hh}:${mm}`;
+    const leadName = document.getElementById("panelTitle")?.textContent?.trim() || "Lead";
+    const title = `Follow-up: ${leadName}`;
+    const userId = Number(document.querySelector('meta[name="user-id"]')?.content);
+    const leadId = panelLeadId;
+    api("tasks", { method: "POST", body: {
+      lead_id: leadId, title, due_at: due, priority: "medium", status: "pending", assigned_to: userId
+    }}).then(() => { closeFollowupModal(); openLeadPanel(leadId); })
+       .catch(err => uiAlert(err.data?.message || err.message, { type: "error", title: "Could not create follow-up" }));
+  }
+
+  function closeLeadPanel() {
+    document.getElementById("leadPanel").style.transform = "translateX(100%)";
+    document.getElementById("panelOverlay").classList.add("hidden");
+    document.getElementById("panelSubtitle")?.remove();
+  }
+
+  function editLeadFromPanel() {
+    if (!panelLead) return;
+    closeLeadPanel();
+    openLeadModal(panelLead);
+  }
+
+  async function deleteLeadFromPanel() {
+    if (panelLeadId == null) return;
+    const name = document.getElementById("panelTitle").textContent;
+    if (!await uiConfirm("Delete lead?", `Delete lead "${name}"? This cannot be undone.`, { confirmText: "Delete", danger: true })) return;
+    await api(`leads/${panelLeadId}`, { method: "DELETE" });
+    document.querySelector(`.lead-row[data-id="${panelLeadId}"]`)?.remove();
+    closeLeadPanel();
+    if (typeof onPanelLeadDeleted === "function") onPanelLeadDeleted(panelLeadId);
+  }
+  document.getElementById("panelDeleteBtn")?.addEventListener("click", deleteLeadFromPanel);
+</script>

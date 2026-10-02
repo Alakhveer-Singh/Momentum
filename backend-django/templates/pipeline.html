@@ -1,6 +1,10 @@
 {% extends "base.html" %}
-{% load lms_extras %}
+{% load lms_extras static %}
 {% block content %}
+<style>
+  .lead-card:hover { box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1); }
+  .lead-card:hover .lead-name { color: #0f172a; }
+</style>
 <h1 class="mb-4 text-xl font-bold">Pipeline</h1>
 <div class="flex gap-4 overflow-x-auto pb-4">
   {% for col in cols %}
@@ -9,37 +13,40 @@
       <div class="flex items-center gap-2">
         <span class="h-3 w-3 rounded-full" style="background: {{ col.stage.color }}"></span>
         <span class="font-semibold">{{ col.stage.name }}</span>
-        <span class="text-sm text-slate-500">({{ col.leads|length }})</span>
+        <span class="text-sm text-slate-500">({{ col.count }})</span>
       </div>
       <span class="text-xs text-slate-500">{{ col.total|inr }}</span>
     </div>
     <div class="space-y-2 dropzone min-h-[40px]">
       {% for lead in col.leads %}
-      <div draggable="true" data-lead="{{ lead.id }}" class="lead-card cursor-grab rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow">
-        <a href="/leads/{{ lead.id }}" class="font-medium text-slate-800 hover:text-indigo-600">{{ lead.full_name }}</a>
+      <div draggable="true" data-lead="{{ lead.id }}" onclick="openLeadPanel({{ lead.id }})" class="lead-card cursor-grab rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition">
+        <div class="lead-name font-medium text-slate-800">{{ lead.full_name }}</div>
         <div class="text-xs text-slate-500">{{ lead.job_title|default:"" }}</div>
-        <div class="mt-2 flex items-center justify-between text-xs">
-          <span class="font-semibold text-indigo-600">{{ lead.value|inr }}</span>
-          <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium {% if lead.score >= 60 %}bg-emerald-100 text-emerald-700{% elif lead.score >= 30 %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-500{% endif %}">
-            <i data-lucide="star" class="h-3 w-3"></i> {{ lead.score }}
-          </span>
-        </div>
-        {% if lead.owner %}<div class="mt-1 flex items-center gap-1 text-xs text-slate-400"><i data-lucide="user" class="h-3 w-3"></i> {{ lead.owner.name }}</div>{% endif %}
       </div>
       {% empty %}
       <div class="rounded-lg border border-dashed border-slate-300 p-3 text-center text-xs text-slate-400">Drop leads here</div>
       {% endfor %}
+      {% if col.count > card_limit %}
+      <div class="rounded-lg p-2 text-center text-xs text-slate-400">Showing first {{ card_limit }} of {{ col.count }}</div>
+      {% endif %}
     </div>
   </div>
   {% endfor %}
 </div>
+
+{% include "partials/lead_modal.html" %}
+{% include "partials/lead_detail_panel.html" %}
+<script src="{% static 'js/lead_modal.js' %}?v={% now 'U' %}"></script>
 {% endblock %}
 {% block page_js %}
 <script>
   let dragId = null;
+  let dragMoved = false;
   document.querySelectorAll(".lead-card").forEach((c) => {
-    c.addEventListener("dragstart", () => { dragId = c.dataset.lead; c.classList.add("opacity-50"); });
+    c.addEventListener("dragstart", () => { dragId = c.dataset.lead; dragMoved = true; c.classList.add("opacity-50"); });
     c.addEventListener("dragend", () => c.classList.remove("opacity-50"));
+    // Suppress the panel-opening click that immediately follows a drag-drop.
+    c.addEventListener("click", (e) => { if (dragMoved) { e.stopPropagation(); dragMoved = false; } }, true);
   });
   document.querySelectorAll("[data-stage]").forEach((col) => {
     col.addEventListener("dragover", (e) => e.preventDefault());
@@ -47,10 +54,14 @@
       if (!dragId) return;
       const stageId = Number(col.dataset.stage);
       try { await api(`leads/${dragId}`, { method: "PUT", body: { stage_id: stageId } }); location.reload(); }
-      catch { alert("Move failed."); }
+      catch { uiAlert("Move failed.", { type: "error" }); }
       dragId = null;
     });
   });
   let t; window.addEventListener("lead-updated", () => { clearTimeout(t); t = setTimeout(() => location.reload(), 1000); });
+
+  // Panel-driven changes should refresh the board so the card lands in the right column.
+  function onPanelStageChanged() { location.reload(); }
+  function onPanelLeadDeleted() { location.reload(); }
 </script>
 {% endblock %}

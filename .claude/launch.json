@@ -2,11 +2,14 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
-      "port": 3000,
-      "autoPort": false
+      "name": "django-backend",
+      "runtimeExecutable": "/Users/alakhveer_singh/Projects/Momentum/backend-django/.venv/bin/python",
+      "runtimeArgs": [
+        "/Users/alakhveer_singh/Projects/Momentum/backend-django/manage.py",
+        "runserver",
+        "1025"
+      ],
+      "port": 1025
     }
   ]
 }

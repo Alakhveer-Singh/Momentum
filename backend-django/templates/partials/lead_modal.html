@@ -80,110 +80,315 @@
     flex-shrink: 0;
   }
   .lm-source-wrapper { position: relative; }
-
 </style>
 <div id="leadModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
   <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onclick="event.stopPropagation()">
-    <h2 id="leadModalTitle" class="mb-5 text-lg font-bold">New Lead</h2>
-    <form id="leadForm" class="space-y-4">
+    <div class="mb-5 flex items-center justify-between">
+      <h2 id="leadModalTitle" class="text-lg font-bold">New Lead</h2>
+      <span id="lm_step_indicator" class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">Step 1 of 2</span>
+    </div>
+    <form id="leadForm">
       <input type="hidden" id="lm_id" />
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="lm-label">First Name <span class="text-red-500">*</span></label><input id="lm_first_name" required class="lm-inp" placeholder="First name" /></div>
-        <div><label class="lm-label">Last Name <span class="text-red-500">*</span></label><input id="lm_last_name" required class="lm-inp" placeholder="Last name" /></div>
-      </div>
-      <div>
-        <label class="lm-label">Mobile No. <span class="text-red-500">*</span></label>
-        <input id="lm_phone" required type="tel" class="lm-inp" placeholder="+91 9876543210" />
-        <div id="lm_extra_phones" class="space-y-2"></div>
-        <button type="button" onclick="lmAddPhone()" class="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"><i data-lucide="plus" class="h-3 w-3"></i> Add another number</button>
-      </div>
-      <div>
-        <label class="lm-label">WhatsApp No. <span class="text-red-500">*</span></label>
-        <label class="mb-2 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" id="lm_wa_same" class="rounded" /> Same as mobile number</label>
-        <input id="lm_whatsapp" type="tel" class="lm-inp" placeholder="+91 9876543210" />
-      </div>
-      <div><label class="lm-label">Email Id</label><input id="lm_email" type="email" class="lm-inp" placeholder="email@example.com" /></div>
-      <div>
-        <label class="lm-label">Preferred contact</label>
-        <select id="lm_preferred_contact" class="lm-inp lm-select">
-          <option value="whatsapp">WhatsApp</option>
-          <option value="email">Email</option>
-        </select>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="lm-label">City <span class="text-red-500">*</span></label><input id="lm_city" required class="lm-inp" placeholder="e.g. Mumbai" /></div>
-        <div><label class="lm-label">Location</label><input id="lm_location" class="lm-inp" placeholder="Area / Locality" /></div>
-      </div>
-      <div>
-        <label class="lm-label">Product / Service <span class="text-red-500">*</span></label>
-        <select id="lm_product_id" required class="lm-inp lm-select"><option value="">Select product or service…</option>
-          {% for p in products %}<option value="{{ p.id }}">{{ p.name }} ({{ p.get_kind_display }})</option>{% endfor %}</select>
-      </div>
-      <div>
-        <label class="lm-label">Current Profile</label>
-        <select id="lm_current_profile" class="lm-inp lm-select"><option value="">Select profile…</option>
-          {% for p in profiles %}<option value="{{ p.name }}">{{ p.name }}</option>{% endfor %}</select>
-      </div>
-      <div>
-        <label class="lm-label">Highest Education</label>
-        <select id="lm_highest_education" class="lm-inp lm-select"><option value="">Select education…</option>
-          <option>XII</option><option>UnderGraduate</option><option>Graduate</option><option>Post Graduate</option><option>PHD</option></select>
-      </div>
-      <div><label class="lm-label">Notes</label><textarea id="lm_notes" rows="3" class="lm-inp" placeholder="Any additional notes…"></textarea></div>
-      <div>
-        <label class="lm-label">Source <span class="text-red-500">*</span></label>
-        <div class="lm-source-wrapper">
-          <button type="button" onclick="lmToggleSourceMenu(event)" class="lm-source-btn">
-            <i data-lucide="layers" style="width: 1rem; height: 1rem; stroke-width: 2.5; flex-shrink: 0;"></i>
-            <span id="lm_source_label">Select source…</span>
-            <i data-lucide="chevron-down" style="width: 0.875rem; height: 0.875rem; margin-left: auto; flex-shrink: 0;"></i>
-          </button>
-          <div id="lm_source_menu" class="lm-source-menu hidden">
-            {% for s in sources %}
-            <div class="lm-source-item">
-              <input type="checkbox" id="lm_source_{{ s }}" value="{{ s }}" class="lm-source-check" />
-              <span class="lm-source-dot"></span>
-              <label for="lm_source_{{ s }}">{{ s|pretty }}</label>
+
+      <!-- Step 1 of 2 -->
+      <div id="lm_step1" class="space-y-4">
+        <div>
+          <label class="lm-label">M. Number <span class="text-red-500">*</span></label>
+          <div style="position:relative;">
+            <div id="lm_phone_wrap" style="display:flex;border:1.5px solid #cbd5e1;border-radius:8px;background:white;transition:border-color 0.15s;" onfocusin="this.style.borderColor='#334155'" onfocusout="this.style.borderColor='#cbd5e1'">
+              <button type="button" id="lm_country_btn" onclick="lmToggleCountryMenu(event)"
+                style="flex-shrink:0;height:42px;padding:0 10px;background:#f8fafc;border:none;border-right:1.5px solid #cbd5e1;border-radius:6px 0 0 6px;cursor:pointer;font-size:12px;font-weight:700;color:#374151;display:flex;align-items:center;gap:5px;white-space:nowrap;letter-spacing:0.02em;">
+                <span id="lm_country_label">IND +91</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <input id="lm_phone" required type="tel" placeholder="10-digit mobile" maxlength="10"
+                style="flex:1;border:none;outline:none;padding:10px 12px;font-size:14px;font-weight:500;color:#0f172a;background:transparent;border-radius:0 6px 6px 0;min-width:0;" />
             </div>
-            {% endfor %}
+            <div id="lm_country_menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:70;background:white;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.13);width:210px;padding:6px;">
+              <input type="text" id="lm_country_search" placeholder="Search country…" autocomplete="off"
+                onclick="event.stopPropagation()"
+                oninput="lmFilterCountries(this.value)"
+                style="display:block;width:100%;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;margin-bottom:4px;color:#374151;" />
+              <div id="lm_country_list" style="max-height:210px;overflow-y:auto;"></div>
+            </div>
           </div>
+          <input type="hidden" id="lm_country_code" value="+91" />
+          <div id="lm_phone_error" class="mt-1 text-xs text-red-600 hidden"></div>
+          <div id="lm_extra_phones" class="space-y-2"></div>
         </div>
-        <input type="hidden" id="lm_source" />
-      </div>
-      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lm-label">Full Name <span class="text-red-500">*</span></label><input id="lm_full_name" required class="lm-inp" placeholder="e.g. Rohit Sharma" /></div>
+        <div>
+          <label class="lm-label">WA No. <span class="text-red-500">*</span></label>
+          <label class="mb-2 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" id="lm_wa_same" class="rounded" /> Same as M. Number</label>
+          <input id="lm_whatsapp" type="tel" class="lm-inp" placeholder="+91 9876543210" />
+        </div>
+        <div><label class="lm-label">Email</label><input id="lm_email" type="email" class="lm-inp" placeholder="email@example.com" /></div>
+        <div>
+          <label class="lm-label">Select Product(s) <span class="text-red-500">*</span></label>
+          <div class="lm-source-wrapper">
+            <button type="button" onclick="lmToggleProductMenu(event)" class="lm-source-btn">
+              <i data-lucide="package" style="width: 1rem; height: 1rem; stroke-width: 2.5; flex-shrink: 0;"></i>
+              <span id="lm_product_label">Select product…</span>
+              <i data-lucide="chevron-down" style="width: 0.875rem; height: 0.875rem; margin-left: auto; flex-shrink: 0;"></i>
+            </button>
+            <div id="lm_product_menu" class="lm-source-menu hidden">
+              {% for p in products %}
+              <div class="lm-source-item">
+                <input type="checkbox" id="lm_product_{{ p.id }}" value="{{ p.id }}" class="lm-product-check" />
+                <span class="lm-source-dot"></span>
+                <label for="lm_product_{{ p.id }}">{{ p.name }} ({{ p.get_kind_display }})</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <input type="hidden" id="lm_product_ids" />
+        </div>
+        <div>
+          <label class="lm-label">Select Source <span class="text-red-500">*</span></label>
+          <div class="lm-source-wrapper">
+            <button type="button" onclick="lmToggleSourceMenu(event)" class="lm-source-btn">
+              <i data-lucide="layers" style="width: 1rem; height: 1rem; stroke-width: 2.5; flex-shrink: 0;"></i>
+              <span id="lm_source_label">Select source…</span>
+              <i data-lucide="chevron-down" style="width: 0.875rem; height: 0.875rem; margin-left: auto; flex-shrink: 0;"></i>
+            </button>
+            <div id="lm_source_menu" class="lm-source-menu hidden">
+              {% for s in sources %}
+              <div class="lm-source-item">
+                <input type="checkbox" id="lm_source_{{ s }}" value="{{ s }}" class="lm-source-check" />
+                <span class="lm-source-dot"></span>
+                <label for="lm_source_{{ s }}">{{ s|pretty }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <input type="hidden" id="lm_source" />
+        </div>
+        <div id="lm_referral_wrap" style="display:none;">
+          <label class="lm-label">Referral Name <span class="text-red-500">*</span></label>
+          <input type="text" id="lm_referral_name" class="lm-inp" placeholder="Who referred this lead?" autocomplete="off" />
+        </div>
         <div>
           <label class="lm-label">Stage <span class="text-red-500">*</span></label>
-          <select id="lm_stage_id" required class="lm-inp lm-select"><option value="">Select stage…</option>
-            {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+          <select id="lm_stage_id" class="lm-inp lm-select">
+            {% for s in stages %}<option value="{{ s.id }}" {% if s.slug == 'new' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select>
         </div>
+        <div id="lm_error1" class="hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" onclick="closeLeadModal()" class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
+          <button type="button" onclick="lmNext()" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Next <i data-lucide="arrow-right" class="h-4 w-4"></i></button>
+        </div>
+      </div>
+
+      <!-- Step 2 of 2 -->
+      <div id="lm_step2" class="hidden space-y-4">
         <div>
           <label class="lm-label">Owner</label>
           <select id="lm_owner_id" class="lm-inp lm-select"><option value="">Unassigned</option>
-            {% if users %}{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}{% endif %}</select>
+            {% if users %}{% for u in users %}<option value="{{ u.id }}" {% if u.id == me.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}{% endif %}</select>
         </div>
-      </div>
-      <div id="lm_error" class="hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
-      <div class="flex justify-end gap-2 pt-1">
-        <button type="button" onclick="closeLeadModal()" class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Cancel</button>
-        <button id="lm_submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">Save Lead</button>
+        <div><label class="lm-label">City</label><input id="lm_city" class="lm-inp" placeholder="e.g. Mumbai" /></div>
+        <div><label class="lm-label">Location</label><input id="lm_location" class="lm-inp" placeholder="Area / Locality" /></div>
+        <div>
+          <label class="lm-label">Current Profile</label>
+          <select id="lm_current_profile" class="lm-inp lm-select"><option value="">Select profile…</option>
+            {% for p in profiles %}<option value="{{ p.name }}">{{ p.name }}</option>{% endfor %}</select>
+        </div>
+        <div>
+          <label class="lm-label">Highest Education</label>
+          <select id="lm_highest_education" class="lm-inp lm-select"><option value="">Select education…</option>
+            <option>XII</option><option>UnderGraduate</option><option>Graduate</option><option>Post Graduate</option><option>PHD</option></select>
+        </div>
+        <div><label class="lm-label">Notes</label><textarea id="lm_notes" rows="3" class="lm-inp" placeholder="Any additional notes…"></textarea></div>
+        <div id="lm_error" class="hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
+        <div class="flex justify-between gap-2 pt-1">
+          <button type="button" onclick="lmBack()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"><i data-lucide="arrow-left" class="h-4 w-4"></i> Back</button>
+          <button id="lm_submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">Save Lead</button>
+        </div>
       </div>
     </form>
   </div>
 </div>
+
+<!-- Merge Modal - shown when duplicate M. Number is found -->
+<div id="mergeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="rounded-2xl bg-white p-5 shadow-2xl" style="width: 90%; max-width: 360px;" onclick="event.stopPropagation()">
+    <div class="mb-3 flex items-start gap-3">
+      <div class="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 flex-shrink-0">
+        <i data-lucide="alert-circle" class="h-4 w-4 text-amber-600"></i>
+      </div>
+      <div>
+        <h2 class="text-base font-bold text-slate-900">Lead Already Exists</h2>
+        <p class="mt-0.5 text-xs text-slate-600">This M. Number is already in the system.</p>
+      </div>
+    </div>
+
+    <div id="existingLeadInfo" class="mb-4 rounded-lg bg-slate-50 p-3">
+      <div class="space-y-1.5 text-xs">
+        <div><span class="font-medium text-slate-700">Name:</span> <span id="mergeLeadName" class="text-slate-900"></span></div>
+        <div><span class="font-medium text-slate-700">M. Number:</span> <span id="mergeLeadPhone" class="text-slate-900"></span></div>
+        <div><span class="font-medium text-slate-700">Email:</span> <span id="mergeLeadEmail" class="text-slate-600"></span></div>
+        <div><span class="font-medium text-slate-700">Product:</span> <span id="mergeLeadProduct" class="text-slate-900"></span></div>
+      </div>
+    </div>
+
+    <p class="mb-5 text-xs text-slate-600">Merge with this lead or continue creating new?</p>
+
+    <div style="display: flex; gap: 10px;">
+      <button type="button" onclick="closeMergeModal()" style="flex: 1; border-radius: 8px; border: 1px solid #cbd5e1; padding: 10px; font-size: 12px; font-weight: 500; color: #475569; background: white; cursor: pointer;">Cancel</button>
+      <button type="button" onclick="confirmMerge()" style="flex: 1; border-radius: 8px; background: #b45309; padding: 10px; font-size: 12px; font-weight: 600; color: white; border: none; cursor: pointer;">Update</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function lmToggleSourceMenu(e) {
   e.preventDefault();
   const menu = document.getElementById("lm_source_menu");
   menu.classList.toggle("hidden");
 }
-document.addEventListener("click", (e) => {
-  const menu = document.getElementById("lm_source_menu");
-  const wrapper = document.querySelector(".lm-source-wrapper");
-  if (menu && !menu.classList.contains("hidden") && !wrapper?.contains(e.target)) {
-    menu.classList.add("hidden");
+
+function lmToggleProductMenu(e) {
+  e.preventDefault();
+  const menu = document.getElementById("lm_product_menu");
+  menu.classList.toggle("hidden");
+}
+
+const LM_COUNTRIES = [
+  {c:"IND",d:"+91"},{c:"ABW",d:"+297"},{c:"AFG",d:"+93"},{c:"AGO",d:"+244"},
+  {c:"AIA",d:"+1264"},{c:"ALB",d:"+355"},{c:"AND",d:"+376"},{c:"UAE",d:"+971"},
+  {c:"ARG",d:"+54"},{c:"ARM",d:"+374"},{c:"ASM",d:"+1684"},{c:"ATG",d:"+1268"},
+  {c:"AUS",d:"+61"},{c:"AUT",d:"+43"},{c:"AZE",d:"+994"},{c:"BDI",d:"+257"},
+  {c:"BEL",d:"+32"},{c:"BEN",d:"+229"},{c:"BFA",d:"+226"},{c:"BGD",d:"+880"},
+  {c:"BGR",d:"+359"},{c:"BHR",d:"+973"},{c:"BHS",d:"+1242"},{c:"BIH",d:"+387"},
+  {c:"BLR",d:"+375"},{c:"BLZ",d:"+501"},{c:"BMU",d:"+1441"},{c:"BOL",d:"+591"},
+  {c:"BRA",d:"+55"},{c:"BRB",d:"+1246"},{c:"BRN",d:"+673"},{c:"BTN",d:"+975"},
+  {c:"BWA",d:"+267"},{c:"CAF",d:"+236"},{c:"CAN",d:"+1"},{c:"SWI",d:"+41"},
+  {c:"CHL",d:"+56"},{c:"CHN",d:"+86"},{c:"CIV",d:"+225"},{c:"CMR",d:"+237"},
+  {c:"COD",d:"+243"},{c:"COG",d:"+242"},{c:"COL",d:"+57"},{c:"COM",d:"+269"},
+  {c:"CPV",d:"+238"},{c:"CRI",d:"+506"},{c:"CUB",d:"+53"},{c:"CYM",d:"+1345"},
+  {c:"CYP",d:"+357"},{c:"CZE",d:"+420"},{c:"GER",d:"+49"},{c:"DJI",d:"+253"},
+  {c:"DMA",d:"+1767"},{c:"DNK",d:"+45"},{c:"DOM",d:"+1809"},{c:"DZA",d:"+213"},
+  {c:"ECU",d:"+593"},{c:"EGY",d:"+20"},{c:"ERI",d:"+291"},{c:"SPA",d:"+34"},
+  {c:"EST",d:"+372"},{c:"ETH",d:"+251"},{c:"FIN",d:"+358"},{c:"FJI",d:"+679"},
+  {c:"FRA",d:"+33"},{c:"GAB",d:"+241"},{c:"UK",d:"+44"},{c:"GEO",d:"+995"},
+  {c:"GHA",d:"+233"},{c:"GIN",d:"+224"},{c:"GMB",d:"+220"},{c:"GNB",d:"+245"},
+  {c:"GNQ",d:"+240"},{c:"GRC",d:"+30"},{c:"GRD",d:"+1473"},{c:"GTM",d:"+502"},
+  {c:"GUY",d:"+592"},{c:"HND",d:"+504"},{c:"HRV",d:"+385"},{c:"HTI",d:"+509"},
+  {c:"HUN",d:"+36"},{c:"IDN",d:"+62"},{c:"IRL",d:"+353"},{c:"IRN",d:"+98"},
+  {c:"IRQ",d:"+964"},{c:"ISL",d:"+354"},{c:"ISR",d:"+972"},{c:"ITA",d:"+39"},
+  {c:"JAM",d:"+1876"},{c:"JOR",d:"+962"},{c:"JPN",d:"+81"},{c:"KAZ",d:"+7"},
+  {c:"KEN",d:"+254"},{c:"KGZ",d:"+996"},{c:"KHM",d:"+855"},{c:"KIR",d:"+686"},
+  {c:"KNA",d:"+1869"},{c:"KOR",d:"+82"},{c:"KWT",d:"+965"},{c:"LAO",d:"+856"},
+  {c:"LBN",d:"+961"},{c:"LBR",d:"+231"},{c:"LBY",d:"+218"},{c:"LCA",d:"+1758"},
+  {c:"LIE",d:"+423"},{c:"SRI",d:"+94"},{c:"LSO",d:"+266"},{c:"LTU",d:"+370"},
+  {c:"LUX",d:"+352"},{c:"LVA",d:"+371"},{c:"MAR",d:"+212"},{c:"MCO",d:"+377"},
+  {c:"MDA",d:"+373"},{c:"MDG",d:"+261"},{c:"MDV",d:"+960"},{c:"MEX",d:"+52"},
+  {c:"MHL",d:"+692"},{c:"MKD",d:"+389"},{c:"MLI",d:"+223"},{c:"MLT",d:"+356"},
+  {c:"MMR",d:"+95"},{c:"MNG",d:"+976"},{c:"MNE",d:"+382"},{c:"MOZ",d:"+258"},
+  {c:"MRT",d:"+222"},{c:"MUS",d:"+230"},{c:"MWI",d:"+265"},{c:"MAL",d:"+60"},
+  {c:"NAM",d:"+264"},{c:"NER",d:"+227"},{c:"NGA",d:"+234"},{c:"NIC",d:"+505"},
+  {c:"NET",d:"+31"},{c:"NOR",d:"+47"},{c:"NPL",d:"+977"},{c:"NRU",d:"+674"},
+  {c:"NZ",d:"+64"},{c:"OMN",d:"+968"},{c:"PAK",d:"+92"},{c:"PAN",d:"+507"},
+  {c:"PER",d:"+51"},{c:"PHL",d:"+63"},{c:"PLW",d:"+680"},{c:"PNG",d:"+675"},
+  {c:"POL",d:"+48"},{c:"PRK",d:"+850"},{c:"POR",d:"+351"},{c:"PRY",d:"+595"},
+  {c:"PSE",d:"+970"},{c:"QAT",d:"+974"},{c:"ROU",d:"+40"},{c:"RUS",d:"+7"},
+  {c:"RWA",d:"+250"},{c:"KSA",d:"+966"},{c:"SDN",d:"+249"},{c:"SEN",d:"+221"},
+  {c:"SGP",d:"+65"},{c:"SLB",d:"+677"},{c:"SLE",d:"+232"},{c:"SLV",d:"+503"},
+  {c:"SMR",d:"+378"},{c:"SOM",d:"+252"},{c:"SRB",d:"+381"},{c:"SSD",d:"+211"},
+  {c:"STP",d:"+239"},{c:"SUR",d:"+597"},{c:"SVK",d:"+421"},{c:"SVN",d:"+386"},
+  {c:"SWE",d:"+46"},{c:"SWZ",d:"+268"},{c:"SYC",d:"+248"},{c:"SYR",d:"+963"},
+  {c:"TCD",d:"+235"},{c:"TGO",d:"+228"},{c:"THA",d:"+66"},{c:"TJK",d:"+992"},
+  {c:"TKM",d:"+993"},{c:"TLS",d:"+670"},{c:"TON",d:"+676"},{c:"TTO",d:"+1868"},
+  {c:"TUN",d:"+216"},{c:"TUR",d:"+90"},{c:"TKL",d:"+690"},{c:"TUV",d:"+688"},
+  {c:"TWN",d:"+886"},{c:"TZA",d:"+255"},{c:"UGA",d:"+256"},{c:"UKR",d:"+380"},
+  {c:"URY",d:"+598"},{c:"USA",d:"+1"},{c:"UZB",d:"+998"},{c:"VCT",d:"+1784"},
+  {c:"VEN",d:"+58"},{c:"VGB",d:"+1284"},{c:"VNM",d:"+84"},{c:"VUT",d:"+678"},
+  {c:"WSM",d:"+685"},{c:"KOS",d:"+383"},{c:"YEM",d:"+967"},{c:"ZAF",d:"+27"},
+  {c:"ZMB",d:"+260"},{c:"ZWE",d:"+263"},
+];
+
+// Expected digit count per dial code (national subscriber number, no country prefix).
+// Anything not listed defaults to 10.
+const LM_PHONE_LEN = {
+  "+973":8, "+965":8, "+974":8, "+968":8, // Bahrain, Kuwait, Qatar, Oman
+  "+971":9, "+966":9, "+213":9, "+212":9, // UAE, Saudi, Algeria, Morocco
+  "+20":10, "+234":10,                     // Egypt, Nigeria (10 stays default but explicit)
+  "+86":11,                                // China
+  "+62":12, "+55":11,                      // Indonesia (up to 12), Brazil mobile (11)
+};
+function lmGetPhoneLen(dial) { return LM_PHONE_LEN[dial] || 10; }
+
+function lmBuildCountryList(q) {
+  const list = document.getElementById("lm_country_list");
+  if (!list) return;
+  const filt = q
+    ? LM_COUNTRIES.filter(x => x.c.toLowerCase().includes(q.toLowerCase()) || x.d.includes(q))
+    : LM_COUNTRIES;
+  list.innerHTML = filt.length
+    ? filt.map(x =>
+        `<div onclick="lmSelectCountry('${x.c}','${x.d}')" style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;border-radius:6px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'"><span>${x.c}</span><span style="color:#94a3b8;font-size:12px;">${x.d}</span></div>`
+      ).join("")
+    : '<div style="padding:10px;font-size:12px;color:#94a3b8;text-align:center;">No results</div>';
+}
+
+function lmFilterCountries(val) { lmBuildCountryList(val); }
+
+function lmToggleCountryMenu(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const menu = document.getElementById("lm_country_menu");
+  const isOpen = menu.style.display !== "none";
+  menu.style.display = isOpen ? "none" : "block";
+  if (!isOpen) {
+    lmBuildCountryList("");
+    setTimeout(() => {
+      const s = document.getElementById("lm_country_search");
+      if (s) { s.value = ""; s.focus(); }
+    }, 0);
   }
-});
+}
+
+function lmSelectCountry(code, dial) {
+  document.getElementById("lm_country_label").textContent = `${code} ${dial}`;
+  document.getElementById("lm_country_code").value = dial;
+  document.getElementById("lm_country_menu").style.display = "none";
+  const phone = document.getElementById("lm_phone");
+  if (phone) {
+    const len = lmGetPhoneLen(dial);
+    phone.maxLength = len;
+    phone.placeholder = `${len}-digit number`;
+  }
+}
+
+// Capture phase so an outside click closes menus even though the lead
+// modal stops click propagation on its content.
+document.addEventListener("click", (e) => {
+  const sourceMenu = document.getElementById("lm_source_menu");
+  const sourceWrapper = document.querySelector(".lm-source-wrapper");
+  if (sourceMenu && !sourceMenu.classList.contains("hidden") && !sourceWrapper?.contains(e.target)) {
+    sourceMenu.classList.add("hidden");
+  }
+
+  const productMenu = document.getElementById("lm_product_menu");
+  const productWrappers = document.querySelectorAll(".lm-source-wrapper");
+  let isInProductWrapper = false;
+  productWrappers.forEach(w => {
+    if (w.contains(productMenu) && w.contains(e.target)) isInProductWrapper = true;
+  });
+  if (productMenu && !productMenu.classList.contains("hidden") && !isInProductWrapper && !document.querySelector(".lm-source-wrapper:has(#lm_product_menu)")?.contains(e.target)) {
+    productMenu.classList.add("hidden");
+  }
+
+  const countryMenu = document.getElementById("lm_country_menu");
+  if (countryMenu && countryMenu.style.display !== "none"
+      && !countryMenu.contains(e.target)
+      && !document.getElementById("lm_country_btn")?.contains(e.target)) {
+    countryMenu.style.display = "none";
+  }
+}, true);
+
 document.addEventListener("change", (e) => {
-  if (e.target.classList.contains("lm-source-check")) lmRenderSourceLabel();
+  if (e.target.classList.contains("lm-source-check")) { lmRenderSourceLabel(); lmToggleReferralField(); }
+  if (e.target.classList.contains("lm-product-check")) lmRenderProductLabel();
 });
 </script>

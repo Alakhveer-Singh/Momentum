@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mx-auto max-w-xl space-y-2">
+<div class="max-w-xl space-y-2">
   <div class="mb-6">
     <h1 class="text-xl font-bold">Products &amp; Services</h1>
     <p class="mt-1 text-sm text-slate-500">Manage the products and services a lead can be interested in.</p>
@@ -15,9 +15,9 @@
       {% for p in products %}
       <div class="prod-row flex items-center gap-3 border-b border-slate-100 py-3 text-sm" draggable="true" data-id="{{ p.id }}">
         <i data-lucide="grip-vertical" class="h-4 w-4 shrink-0 cursor-grab text-slate-300"></i>
-        <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-indigo-600"></span>
-        <span class="name flex-1 text-indigo-600">{{ p.name }}</span>
-        <span class="kind rounded-full px-2 py-0.5 text-xs font-medium text-slate-500">{{ p.get_kind_display }}</span>
+        <button type="button" class="color-dot" style="background:{{ p.color }};" data-color="{{ p.color }}" title="Change color" onclick="event.stopPropagation(); openColorPicker(this, this.dataset.color, (c) => setProductColor({{ p.id }}, c, this))"></button>
+        <span class="name flex-1 text-slate-900">{{ p.name }}</span>
+        {% if p.label %}<span class="kind rounded-full px-2 py-0.5 text-xs font-medium text-slate-500">{{ p.label }}</span>{% endif %}
         <div class="flex items-center gap-1">
           <button onclick="renameProduct({{ p.id }}, this)" class="rounded p-1 text-slate-400 hover:bg-slate-100"><i data-lucide="pencil" class="h-3.5 w-3.5"></i></button>
           <button onclick="deleteProduct({{ p.id }}, '{{ p.name|escapejs }}')" class="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"><i data-lucide="x" class="h-3.5 w-3.5"></i></button>
@@ -25,7 +25,7 @@
       </div>
       {% endfor %}
     </div>
-    <button onclick="addProduct()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50"><i data-lucide="plus" class="h-4 w-4"></i> Add product / service</button>
+    <button onclick="addProduct()" class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-slate-900 hover:bg-slate-100"><i data-lucide="plus" class="h-4 w-4"></i> Add product / service</button>
   </div>
 </div>
 {% endblock %}
@@ -39,7 +39,15 @@
     try {
       const res = await api(`products/${id}`, { method: "PATCH", body: { name } });
       span.textContent = res.name;
-    } catch (err) { alert(err.data?.detail || "Rename failed."); }
+    } catch (err) { uiAlert(err.data?.detail || "Rename failed.", { type: "error" }); }
+  }
+
+  async function setProductColor(id, color, dot) {
+    dot.style.background = color;
+    dot.dataset.color = color;
+    try {
+      await api(`products/${id}`, { method: "PATCH", body: { color } });
+    } catch (err) { uiAlert(err.data?.detail || "Could not update color.", { type: "error" }); }
   }
 
   async function deleteProduct(id, name) {
@@ -47,7 +55,7 @@
     try {
       await api(`products/${id}/delete`, { method: "DELETE" });
       location.reload();
-    } catch (err) { alert(err.data?.detail || "Delete failed."); }
+    } catch (err) { uiAlert(err.data?.detail || "Delete failed.", { type: "error" }); }
   }
 
   async function addProduct() {
@@ -55,15 +63,15 @@
       title: "Add product / service",
       fields: [
         { name: "name", label: "Name", placeholder: "e.g. UI/UX Design Course", required: true },
-        { name: "kind", label: "Type", type: "select", options: [{ value: "product", label: "Product" }, { value: "service", label: "Service" }], value: "product" },
+        { name: "label", label: "Label", placeholder: "e.g. Bestseller", required: false },
       ],
       confirmText: "Add",
     });
     if (!res) return;
     try {
-      await api("products/create", { method: "POST", body: { name: res.name, kind: res.kind } });
+      await api("products/create", { method: "POST", body: { name: res.name, label: res.label } });
       location.reload();
-    } catch (err) { alert(err.data?.detail || "Failed to add."); }
+    } catch (err) { uiAlert(err.data?.detail || "Failed to add.", { type: "error" }); }
   }
 
   // Drag reorder

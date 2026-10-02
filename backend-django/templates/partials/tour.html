@@ -1,0 +1,199 @@
+<style>
+  #tourRoot { position: fixed; inset: 0; z-index: 9998; display: none; }
+  #tourRoot.active { display: block; }
+  .tour-block { position: fixed; inset: 0; z-index: 9998; background: transparent; }
+  #tourRoot.is-center .tour-block { background: rgba(15,23,42,.6); }
+  .tour-spot {
+    position: fixed; z-index: 9999; border-radius: 12px; pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(15,23,42,.6), 0 0 0 3px #fff inset;
+    transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+  }
+  #tourRoot.is-center .tour-spot { display: none; }
+  .tour-pop {
+    position: fixed; z-index: 10000; width: 320px; max-width: calc(100vw - 32px);
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+    box-shadow: 0 24px 50px -12px rgba(15,23,42,.35); padding: 18px 18px 14px;
+    transition: top .25s ease, left .25s ease;
+  }
+  .tour-pop h4 { margin: 0 0 6px; padding-right: 60px; font-size: 16px; font-weight: 700; color: #0f172a; }
+  .tour-pop p { margin: 0; font-size: 14px; line-height: 1.55; color: #475569; }
+  .tour-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+  .tour-dots { display: flex; gap: 5px; }
+  .tour-dot { width: 6px; height: 6px; border-radius: 50%; background: #cbd5e1; }
+  .tour-dot.on { background: #0f172a; width: 16px; border-radius: 3px; }
+  .tour-btns { display: flex; gap: 8px; }
+  .tour-btn { border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+  .tour-btn-ghost { background: transparent; color: #64748b; }
+  .tour-btn-ghost:hover { color: #0f172a; }
+  .tour-btn-prev { background: #fff; border-color: #e2e8f0; color: #334155; }
+  .tour-btn-prev:hover { background: #f8fafc; }
+  .tour-btn-next { background: #0f172a; color: #fff; }
+  .tour-btn-next:hover { background: #1e293b; }
+  .tour-skip { position: absolute; top: 14px; right: 16px; font-size: 12px; color: #94a3b8; cursor: pointer; background: none; border: none; }
+  .tour-skip:hover { color: #475569; }
+  /* dark mode */
+  html.dark .tour-pop { background: #1e293b; border-color: #334155; }
+  html.dark .tour-pop h4 { color: #f1f5f9; }
+  html.dark .tour-pop p { color: #cbd5e1; }
+  html.dark .tour-dot { background: #475569; }
+  html.dark .tour-dot.on { background: #f1f5f9; }
+  html.dark .tour-btn-prev { background: #0f172a; border-color: #475569; color: #e2e8f0; }
+  html.dark .tour-btn-next { background: #f1f5f9; color: #0f172a; }
+  html.dark .tour-spot { box-shadow: 0 0 0 9999px rgba(2,6,23,.7), 0 0 0 3px #f1f5f9 inset; }
+</style>
+
+<div id="tourRoot" aria-hidden="true">
+  <div class="tour-block" id="tourBlock"></div>
+  <div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-pop" id="tourPop" role="dialog" aria-modal="true">
+    <button class="tour-skip" type="button" onclick="endTour(true)">Skip tour</button>
+    <h4 id="tourTitle"></h4>
+    <p id="tourBody"></p>
+    <div class="tour-foot">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-btns">
+        <button class="tour-btn tour-btn-prev" type="button" id="tourPrev" onclick="tourGo(-1)">Back</button>
+        <button class="tour-btn tour-btn-next" type="button" id="tourNext" onclick="tourGo(1)">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const ROLE = (document.querySelector('meta[name="user-role"]')?.content || "rep").trim();
+  const UID = (document.querySelector('meta[name="user-id"]')?.content || "0").trim();
+  const KEY = "momentum_tour_done_" + UID;
+  const NAME = "{{ me.name|default:'there'|escapejs }}";
+
+  // roles: omit = everyone. sel: omit = centered welcome/finish card.
+  const ALL_STEPS = [
+    { title: "Welcome to Momentum, " + NAME, icon: "hand", body: "Let's take a quick 30-second tour of your workspace. You can skip anytime." },
+    { sel: '[data-tour="dashboard"]', title: "Dashboard", body: "Your home base — a live overview of open leads, conversion, pipeline and team performance." },
+    { sel: '[data-tour="leads"]', title: "Leads", body: "Where all your leads live. Search, filter by stage, assign owners, and import or export in bulk." },
+    { sel: '[data-tour="pipeline"]', title: "Pipeline", body: "A kanban board of your deals. Drag leads between stages as they progress." },
+    { sel: '[data-tour="tasks"]', title: "Follow-ups", body: "Never miss a callback. Your scheduled follow-ups and reminders show up here." },
+    { sel: '[data-tour="students"]', title: "Students", body: "Leads that converted become students — manage their profiles here." },
+    { sel: '[data-tour="masters"]', title: "SuperAdmin Masters", body: "Configure the system: products & services, funnel stages, lead sources and customer profiles.", roles: ["admin"] },
+    { sel: '[data-tour="users"]', title: "Team & Roles", body: "Add teammates, set their roles (admin, manager, telecaller) and manage access.", roles: ["admin"] },
+    { sel: '[data-tour="notifications"]', title: "Notifications", body: "Real-time alerts for assignments, stage changes and activity land here." },
+    { sel: '[data-tour="theme"]', title: "Light & dark mode", body: "Prefer a darker look? Toggle the theme anytime — it remembers your choice." },
+    { sel: '[data-tour="profile"]', title: "Your account", body: "Edit your profile, sign out, or replay this tour whenever you like." },
+    { title: "You're all set!", icon: "rocket", body: "That's the basics. Explore around — and click \"Take a tour\" in the bottom-left to see this again." },
+  ];
+
+  let steps = [];
+  let i = 0;
+
+  function visible(el) { return el && el.offsetParent !== null; }
+
+  function buildSteps() {
+    steps = ALL_STEPS.filter((s) => {
+      if (s.roles && !s.roles.includes(ROLE)) return false;
+      if (s.sel && !visible(document.querySelector(s.sel))) return false;
+      return true;
+    });
+  }
+
+  function renderDots() {
+    const d = document.getElementById("tourDots");
+    d.innerHTML = steps.map((_, idx) => `<span class="tour-dot ${idx === i ? "on" : ""}"></span>`).join("");
+  }
+
+  function place(step) {
+    const root = document.getElementById("tourRoot");
+    const spot = document.getElementById("tourSpot");
+    const pop = document.getElementById("tourPop");
+    const target = step.sel ? document.querySelector(step.sel) : null;
+
+    if (!target) {
+      root.classList.add("is-center");
+      pop.style.top = (window.innerHeight / 2 - pop.offsetHeight / 2) + "px";
+      pop.style.left = (window.innerWidth / 2 - pop.offsetWidth / 2) + "px";
+      return;
+    }
+    root.classList.remove("is-center");
+    target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const r = target.getBoundingClientRect();
+    const pad = 6;
+    spot.style.top = (r.top - pad) + "px";
+    spot.style.left = (r.left - pad) + "px";
+    spot.style.width = (r.width + pad * 2) + "px";
+    spot.style.height = (r.height + pad * 2) + "px";
+
+    // Prefer placing the popover to the right of sidebar targets, else below, else above.
+    const gap = 14;
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let top, left;
+    if (r.right + gap + pw < window.innerWidth) {        // right
+      left = r.right + gap; top = Math.min(Math.max(12, r.top), window.innerHeight - ph - 12);
+    } else if (r.bottom + gap + ph < window.innerHeight) { // below
+      top = r.bottom + gap; left = Math.min(Math.max(12, r.left), window.innerWidth - pw - 12);
+    } else {                                              // above
+      top = Math.max(12, r.top - gap - ph); left = Math.min(Math.max(12, r.left), window.innerWidth - pw - 12);
+    }
+    pop.style.top = top + "px";
+    pop.style.left = left + "px";
+  }
+
+  function show() {
+    const step = steps[i];
+    const titleEl = document.getElementById("tourTitle");
+    titleEl.innerHTML = "";
+    if (step.icon) {
+      const icon = document.createElement("i");
+      icon.setAttribute("data-lucide", step.icon);
+      icon.style.cssText = "width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:#6366f1;";
+      titleEl.appendChild(icon);
+    }
+    titleEl.appendChild(document.createTextNode(step.title));
+    document.getElementById("tourBody").textContent = step.body;
+    document.getElementById("tourPrev").style.visibility = i === 0 ? "hidden" : "visible";
+    document.getElementById("tourNext").textContent = i === steps.length - 1 ? "Finish" : "Next";
+    renderDots();
+    if (window.lucide) lucide.createIcons();
+    // place twice: once to measure, once after layout settles
+    place(step);
+    requestAnimationFrame(() => place(step));
+  }
+
+  window.tourGo = function (dir) {
+    i += dir;
+    if (i >= steps.length) { endTour(true); return; }
+    if (i < 0) i = 0;
+    show();
+  };
+
+  window.startTour = function () {
+    buildSteps();
+    if (!steps.length) return;
+    i = 0;
+    document.getElementById("tourRoot").classList.add("active");
+    show();
+  };
+
+  window.endTour = function (markDone) {
+    document.getElementById("tourRoot").classList.remove("active");
+    if (markDone) { try { localStorage.setItem(KEY, "1"); } catch (e) {} }
+  };
+
+  window.addEventListener("resize", () => {
+    if (document.getElementById("tourRoot").classList.contains("active")) place(steps[i]);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (!document.getElementById("tourRoot").classList.contains("active")) return;
+    if (e.key === "Escape") endTour(true);
+    else if (e.key === "ArrowRight") tourGo(1);
+    else if (e.key === "ArrowLeft") tourGo(-1);
+  });
+
+  // Auto-start once per user, only on the dashboard so it's the first thing they see.
+  function maybeAutoStart() {
+    let done = false;
+    try { done = localStorage.getItem(KEY) === "1"; } catch (e) {}
+    if (!done && "{{ active }}" === "dashboard") setTimeout(startTour, 600);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", maybeAutoStart);
+  else maybeAutoStart();
+})();
+</script>

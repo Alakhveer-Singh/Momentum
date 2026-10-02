@@ -7,6 +7,7 @@ from .models import (
     CustomFieldDefinition,
     EmailTemplate,
     Lead,
+    LeadComment,
     LoginActivity,
     Notification,
     PipelineStage,
@@ -15,8 +16,8 @@ from .models import (
     User,
 )
 
-admin.site.site_header = "Quibus LMS Administration"
-admin.site.site_title = "Quibus LMS"
+admin.site.site_header = "Momentum Administration"
+admin.site.site_title = "Momentum"
 admin.site.index_title = "Lead Management & CRM"
 
 
@@ -110,3 +111,10 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
 admin.site.register(CustomFieldDefinition)
 admin.site.register(Notification)
+
+
+@admin.register(LeadComment)
+class LeadCommentAdmin(admin.ModelAdmin):
+    list_display = ("lead", "user", "created_at")
+    search_fields = ("body", "lead__first_name", "lead__last_name", "user__name")
+    readonly_fields = ("created_at",)

@@ -1,5 +1,5 @@
-<div id="uiModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
-  <div id="uiModalCard" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" style="transform:scale(.96);opacity:0;transition:transform .15s ease,opacity .15s ease;" onclick="event.stopPropagation()">
+<div id="uiModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4" style="z-index:100;">
+  <div id="uiModalCard" class="w-full max-w-md bg-white p-6" style="border-radius:22px;box-shadow:0 24px 64px rgba(15,23,42,.28);transform:scale(.96) translateY(6px);opacity:0;transition:transform .18s cubic-bezier(.34,1.4,.5,1),opacity .18s ease;" onclick="event.stopPropagation()">
     <div class="flex items-center gap-3">
       <div id="uiModalIcon" class="hidden h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"></div>
       <h3 id="uiModalTitle" class="text-lg font-bold text-slate-800"></h3>
@@ -9,7 +9,7 @@
     <div id="uiModalError" class="mt-3 hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
     <div class="mt-6 flex justify-end gap-2">
       <button type="button" id="uiModalCancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">Cancel</button>
-      <button type="button" id="uiModalConfirm" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Save</button>
+      <button type="button" id="uiModalConfirm" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Save</button>
     </div>
   </div>
 </div>
@@ -29,11 +29,13 @@
   function open() {
     modal.classList.remove("hidden");
     modal.classList.add("flex");
-    requestAnimationFrame(() => { card.style.transform = "scale(1)"; card.style.opacity = "1"; });
+    modal.style.backdropFilter = "blur(4px)";
+    requestAnimationFrame(() => { card.style.transform = "scale(1) translateY(0)"; card.style.opacity = "1"; });
   }
   function close(result) {
-    card.style.transform = "scale(.96)"; card.style.opacity = "0";
+    card.style.transform = "scale(.96) translateY(6px)"; card.style.opacity = "0";
     setTimeout(() => { modal.classList.add("hidden"); modal.classList.remove("flex"); }, 130);
+    cancelBtn.style.display = "";  // restore for next dialog (uiAlert hides it)
     const r = resolver; resolver = null;
     if (r) r(result);
   }
@@ -120,7 +122,7 @@
       titleEl.textContent = title;
       msgEl.textContent = message || ""; msgEl.classList.remove("hidden");
       const danger = o.danger !== false;
-      iconEl.className = "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full " + (danger ? "bg-red-50 text-red-500" : "bg-indigo-50 text-indigo-600");
+      iconEl.className = "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full " + (danger ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-900");
       iconEl.innerHTML = `<i data-lucide="${danger ? 'alert-triangle' : 'help-circle'}" class="h-5 w-5"></i>`;
       confirmBtn.textContent = o.confirmText || (danger ? "Delete" : "Confirm");
       confirmBtn.className = "rounded-lg px-4 py-2 text-sm font-semibold text-white";
@@ -128,6 +130,33 @@
       confirmBtn.onclick = () => close(true);
       open();
       lucide.createIcons();
+      setTimeout(() => confirmBtn.focus(), 60);
+    });
+  };
+
+  // uiAlert(message, { title, type:'info'|'success'|'error', confirmText }) -> resolves on OK
+  window.uiAlert = function (message, o = {}) {
+    return new Promise((resolve) => {
+      resolver = resolve;
+      bodyEl.innerHTML = ""; bodyEl.classList.add("hidden");
+      errEl.classList.add("hidden");
+      const type = o.type || "info";
+      const conf = {
+        success: { bg: "bg-slate-100 text-slate-900", icon: "check-circle",  btn: "#10b981", title: "Done" },
+        error:   { bg: "bg-red-50 text-red-500",          icon: "alert-circle",  btn: "#dc2626", title: "Something went wrong" },
+        info:    { bg: "bg-slate-100 text-slate-900",    icon: "info",          btn: "#4f46e5", title: "Notice" },
+      }[type] || null;
+      iconEl.className = "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full " + (conf ? conf.bg : "");
+      iconEl.innerHTML = conf ? `<i data-lucide="${conf.icon}" class="h-5 w-5"></i>` : "";
+      titleEl.textContent = o.title || (conf ? conf.title : "Notice");
+      msgEl.textContent = message || ""; msgEl.classList.remove("hidden");
+      cancelBtn.style.display = "none";
+      confirmBtn.textContent = o.confirmText || "OK";
+      confirmBtn.className = "rounded-lg px-4 py-2 text-sm font-semibold text-white";
+      confirmBtn.style.background = conf ? conf.btn : "#4f46e5";
+      confirmBtn.onclick = () => close(true);
+      open();
+      if (window.lucide) lucide.createIcons();
       setTimeout(() => confirmBtn.focus(), 60);
     });
   };

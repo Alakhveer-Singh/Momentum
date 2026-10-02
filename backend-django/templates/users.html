@@ -3,7 +3,7 @@
 <div class="space-y-4">
   <div class="flex items-center justify-between">
     <h1 class="text-xl font-bold">Team &amp; Roles</h1>
-    <button onclick="openUser()" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"><i data-lucide="plus" class="h-4 w-4"></i> Add User</button>
+    <button onclick="openUser()" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"><i data-lucide="plus" class="h-4 w-4"></i> Add User</button>
   </div>
 
   <form id="userForm" class="hidden flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4">
@@ -13,7 +13,7 @@
     <input id="u_password" type="password" placeholder="Password (min 8)" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
     <select id="u_role" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="rep">Telecaller</option><option value="manager">Manager</option><option value="admin">Admin</option></select>
     <input id="u_phone" placeholder="Phone" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-    <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Save</button>
+    <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save</button>
     <button type="button" onclick="document.getElementById('userForm').classList.add('hidden')" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
     <div id="u_error" class="hidden w-full rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
   </form>
@@ -27,10 +27,10 @@
         {% for u in users %}
         <tr class="border-t border-slate-100">
           <td class="px-4 py-3"><div class="font-medium">{{ u.name }}</div><div class="text-xs text-slate-400">{{ u.email }}</div></td>
-          <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium capitalize {% if u.role == 'admin' %}bg-purple-100 text-purple-700{% elif u.role == 'manager' %}bg-blue-100 text-blue-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ u.role }}</span></td>
+          <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium capitalize {% if u.role == 'admin' %}bg-slate-200 text-slate-700{% elif u.role == 'manager' %}bg-slate-200 text-slate-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ u.role }}</span></td>
           <td class="hidden px-4 py-3 md:table-cell">{{ u.leads_count }}</td>
           <td class="hidden px-4 py-3 md:table-cell">{{ u.tasks_count }}</td>
-          <td class="px-4 py-3"><button onclick="toggleActive({{ u.id }}, {{ u.is_active|yesno:'true,false' }})" class="rounded-full px-2 py-0.5 text-xs font-medium {% if u.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-red-100 text-red-700{% endif %}">{{ u.is_active|yesno:"Active,Inactive" }}</button></td>
+          <td class="px-4 py-3"><button onclick="toggleActive({{ u.id }}, {{ u.is_active|yesno:'true,false' }})" class="rounded-full px-2 py-0.5 text-xs font-medium {% if u.is_active %}bg-slate-200 text-slate-800{% else %}bg-red-100 text-red-700{% endif %}">{{ u.is_active|yesno:"Active,Inactive" }}</button></td>
           <td class="px-4 py-3 text-right">
             <button onclick="openUser({{ u.id }})" data-id="{{ u.id }}" data-name="{{ u.name }}" data-email="{{ u.email }}" data-role="{{ u.role }}" data-phone="{{ u.phone }}" class="u-edit rounded p-1.5 text-slate-500 hover:bg-slate-100" title="Edit"><i data-lucide="pencil" class="h-4 w-4"></i></button>
             <button onclick="delUser({{ u.id }}, '{{ u.name|escapejs }}')" class="rounded p-1.5 text-red-500 hover:bg-red-50" title="Delete"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
@@ -66,12 +66,12 @@
   });
   async function toggleActive(id, active) {
     try { await api(`users/${id}`, { method: "PATCH", body: { is_active: !active } }); location.reload(); }
-    catch (err) { alert(err.data?.message || "Update failed."); }
+    catch (err) { uiAlert(err.data?.message || "Update failed.", { type: "error" }); }
   }
   async function delUser(id, name) {
-    if (!confirm(`Delete user ${name}? Their leads will be unassigned.`)) return;
+    if (!await uiConfirm("Delete user?", `Delete user ${name}? Their leads will be unassigned.`, { confirmText: "Delete", danger: true })) return;
     try { await api(`users/${id}`, { method: "DELETE" }); location.reload(); }
-    catch (err) { alert(err.data?.message || "Delete failed."); }
+    catch (err) { uiAlert(err.data?.message || "Delete failed.", { type: "error" }); }
   }
 </script>
 {% endblock %}

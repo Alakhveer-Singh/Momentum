@@ -65,13 +65,21 @@ async function refreshNotifs() {
   const list = document.getElementById("notifList");
   if (!data.notifications.length) { list.innerHTML = '<div class="p-4 text-sm text-slate-400">No notifications yet.</div>'; return; }
   list.innerHTML = data.notifications.map((n) =>
-    `<div class="border-b border-slate-50 px-4 py-2 text-sm ${!n.read_at ? "bg-indigo-50" : ""}">
+    `<div class="border-b border-slate-50 px-4 py-2 text-sm ${!n.read_at ? "bg-slate-100" : ""}">
        <div>${n.data.message ?? ""}</div>
        <div class="text-xs text-slate-400">${new Date(n.created_at).toLocaleString()}</div>
      </div>`).join("");
 }
 
 // --- Realtime (Channels WebSocket) -----------------------------------------
+// Safari ignores the icon option (always shows its own logo); Chrome/Edge/Firefox honour it.
+const NOTIF_ICON = "/static/img/momentum-logo-dark.png";
+function osNotify(body) {
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("Momentum", { body, icon: NOTIF_ICON });
+  }
+}
+
 function connectWS() {
   if (!WS_TOKEN) return;
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -79,18 +87,18 @@ function connectWS() {
   sock.onmessage = (e) => {
     let msg; try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.event === "lead.updated") {
-      if (msg.action !== "updated" && "Notification" in window && Notification.permission === "granted") {
-        new Notification("Quibus LMS", { body: `Lead ${msg.lead.full_name} ${msg.action === "created" ? "captured" : msg.action}` });
+      if (msg.action !== "updated") {
+        osNotify(`Lead ${msg.lead.full_name} ${msg.action === "created" ? "captured" : msg.action}`);
       }
       window.dispatchEvent(new CustomEvent("lead-updated", { detail: msg }));
     } else if (msg.event === "notification") {
       refreshNotifs();
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Quibus LMS", { body: msg.payload?.message ?? "New notification" });
-      }
+      osNotify(msg.payload?.message ?? "New notification");
     }
   };
   sock.onclose = () => setTimeout(connectWS, 3000);
 }
 if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
 connectWS();
+// Poll fallback: keep the bell current even if a realtime message is missed or the socket drops.
+setInterval(() => { if (document.visibilityState === "visible") refreshNotifs(); }, 60000);

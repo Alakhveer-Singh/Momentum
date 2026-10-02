@@ -4,37 +4,110 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign in · Quibus LMS</title>
+  <title>Sign in · Momentum</title>
+  <link rel="manifest" href="{% static 'manifest.json' %}" />
+  <meta name="theme-color" content="#17130f" />
+  <link rel="icon" type="image/png" href="{% static 'img/momentum-icon-192.png' %}" />
+  <link rel="apple-touch-icon" href="{% static 'img/momentum-icon-180.png' %}" />
   <link rel="stylesheet" href="{% static 'css/app.css' %}" />
   <script src="https://unpkg.com/lucide@latest"></script>
+  {% include "partials/auth_styles.html" %}
+  <style>
+    .or-divider { display: flex; align-items: center; gap: 12px; margin: 26px 0 16px; }
+    .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; }
+    .or-divider span { font-size: 12px; color: #94a3b8; }
+    .alt-login { display: flex; flex-direction: column; gap: 10px; }
+    .google-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+      padding: 13px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff;
+      color: #1f2937; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .12s;
+    }
+    .google-btn:hover { background: #f8fafc; }
+    .forgot { display: inline-block; margin-top: 12px; font-size: 13px; color: #ea580c; text-decoration: none; font-weight: 600; }
+    .forgot:hover { text-decoration: underline; }
+  </style>
 </head>
-<body class="bg-slate-900">
-<div class="flex min-h-screen items-center justify-center p-4">
-  <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
-    <div class="mb-6 text-center">
-      <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600">
-        <i data-lucide="target" class="h-8 w-8 text-white"></i>
-      </div>
-      <h1 class="mt-3 text-2xl font-bold">Quibus LMS</h1>
-      <p class="text-sm text-slate-500">Sign in to your workspace</p>
-    </div>
-    <form method="post" action="/login" class="space-y-4">
-      {% csrf_token %}
-      <div>
-        <label class="mb-1 block text-sm font-medium">Email</label>
-        <input type="email" name="email" value="{{ email|default:'admin@quibus.in' }}" required
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none" />
-      </div>
-      <div>
-        <label class="mb-1 block text-sm font-medium">Password</label>
-        <input type="password" name="password" value="password" required
-               class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none" />
-      </div>
-      {% if error %}<div class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</div>{% endif %}
-      <button class="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white hover:bg-indigo-700">Sign in</button>
-    </form>
+<body>
+<div class="stage">
+<div class="split">
+
+  <!-- LEFT: hero -->
+  <div class="pane pane-left">
+    {% include "partials/auth_hero.html" %}
   </div>
+
+  <!-- RIGHT: form -->
+  <div class="pane pane-right">
+    <div class="topbar">
+      <div class="brand">
+        <img src="{% static 'img/momentum-logo-dark.png' %}" alt="Momentum" style="height:34px;width:auto;" />
+        <span class="brand-name">Momentum</span>
+      </div>
+    </div>
+
+    <div class="form-wrap">
+      <h1 class="title">Sign In</h1>
+
+      <form method="post" action="/login">
+        {% csrf_token %}
+        <div class="field">
+          <input type="email" name="email" value="{{ email|default:'' }}" placeholder="Email or Username" required />
+        </div>
+        <div class="field pw-wrap">
+          <input type="password" name="password" value="" placeholder="Password" required />
+          <button type="button" class="pw-toggle" aria-label="Show password" onclick="togglePw(this)">
+            <i data-lucide="eye" style="height:18px;width:18px"></i>
+          </button>
+        </div>
+        <a href="/forgot" class="forgot">Forgot password?</a>
+
+        {% if request.GET.reset %}<div class="success">Password updated. Please sign in with your new password.</div>{% endif %}
+        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+
+        <button type="submit" class="btn-login"><i data-lucide="log-in" style="height:18px;width:18px"></i> Sign In</button>
+      </form>
+
+      <div class="or-divider"><span>or continue with</span></div>
+
+      <div class="alt-login">
+        <a href="/auth/google/start" class="google-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.83z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.83C6.71 7.31 9.14 5.38 12 5.38z"/>
+          </svg>
+          Continue with Google
+        </a>
+        <a href="/login/magic" class="google-btn">
+          <i data-lucide="mail" style="width:18px;height:18px"></i>
+          Email me a sign-in link
+        </a>
+        <a href="/login/phone" class="google-btn">
+          <i data-lucide="smartphone" style="width:18px;height:18px"></i>
+          Sign in with phone
+        </a>
+      </div>
+    </div>
+
+    <div class="legal">
+      <span>&copy; 2020-2026 Momentum</span>
+      <div><a href="mailto:momentum0team@gmail.com">Contact Us</a></div>
+    </div>
+  </div>
+
 </div>
-<script>lucide.createIcons();</script>
+</div>
+<script>
+  function togglePw(btn) {
+    const input = btn.parentElement.querySelector('input');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    btn.innerHTML = '<i data-lucide="' + (show ? 'eye-off' : 'eye') + '" style="height:18px;width:18px"></i>';
+    lucide.createIcons();
+  }
+  lucide.createIcons();
+</script>
 </body>
 </html>

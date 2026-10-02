@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import include, path
@@ -44,6 +46,11 @@ api = [
     # Notifications
     path("notifications", views.notifications_view),
     path("notifications/read", views.notifications_read_view),
+    path("notifications/send", views.notifications_send_view),
+    # Campaigns (SMS/WhatsApp for team)
+    path("campaigns", views.campaigns_list_view),
+    path("campaigns/create", views.campaigns_create_view),
+    path("campaigns/mark-read", views.campaigns_mark_read_view),
     # Admin
     path("users/<int:pk>/reset-password", views.reset_user_password),
     # Sources
@@ -67,16 +74,33 @@ api = [
     # Bulk lead actions (must precede router's leads/<pk> route)
     path("leads/bulk-assign", views.leads_bulk_assign_view),
     path("leads/bulk-delete", views.leads_bulk_delete_view),
+    # Student profile + attachments (must precede router's leads/<pk> route)
+    path("leads/<int:pk>/profile", views.lead_profile_save_view),
+    path("leads/<int:pk>/attachments", views.lead_attachments_view),
+    path("leads/<int:pk>/attachments/<int:aid>/delete", views.lead_attachment_delete_view),
+    # Lead discussion comments (must precede router's leads/<pk> route)
+    path("leads/<int:pk>/comments", views.lead_comments_view),
     *router.urls,
 ]
 
 web = [
     path("", web_views.dashboard),
     path("login", web_views.login_page),
+    path("login/verify", web_views.verify_login_otp),
+    path("auth/google/start", web_views.google_login_start),
+    path("auth/google/callback", web_views.google_login_callback),
+    path("login/magic", web_views.magic_link_request),
+    path("login/magic/verify", web_views.magic_link_verify),
+    path("login/phone", web_views.phone_login),
+    path("login/phone/verify", web_views.phone_verify),
+    path("forgot", web_views.forgot_password),
+    path("reset-password", web_views.reset_password),
     path("logout", web_views.logout_view),
     path("pipeline", web_views.pipeline),
     path("leads", web_views.leads),
     path("leads/<int:pk>", web_views.lead_detail),
+    path("students", web_views.students),
+    path("students/<int:pk>", web_views.student_detail),
     path("tasks", web_views.tasks),
     path("templates", web_views.templates_page),
     path("reports", web_views.reports),
@@ -87,6 +111,9 @@ web = [
     path("masters", web_views.masters_hub),
     path("masters/profiles", web_views.customer_profiles_page),
     path("profile", web_views.profile),
+    path("profile/avatar", web_views.profile_avatar),
+    path("campaigns", web_views.campaigns_page),
+    path("campaigns/team", web_views.campaigns_team_page),
 ]
 
 urlpatterns = [
@@ -96,3 +123,4 @@ urlpatterns = [
 ]
 
 urlpatterns += staticfiles_urlpatterns()
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

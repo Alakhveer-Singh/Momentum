@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  .cf-input:focus { outline: none; border-color: #0f172a; box-shadow: 0 0 0 3px rgba(15,23,42,.12); }
+  .cf-btn-dark:hover { background: #1e293b; }
+  .cf-card { margin-bottom: 16px; }
+</style>
+<main class="flex-1 overflow-y-auto">
+  <div class="mx-auto" style="max-width:72rem;padding:24px;">
+    <div class="flex justify-between items-center" style="margin-bottom:32px;">
+      <h1 class="font-bold text-slate-900" style="font-size:1.875rem;">Campaigns</h1>
+      <button onclick="openCreateCampaignModal()" class="cf-btn-dark bg-slate-900 text-white rounded-lg font-semibold whitespace-nowrap" style="padding:12px 28px;">
+        + New Campaign
+      </button>
+    </div>
+
+    <div id="campaignsList">
+      <div class="text-center text-slate-400" style="padding:48px 0;">Loading campaigns...</div>
+    </div>
+  </div>
+</main>
+
+<!-- Create Campaign Modal -->
+<div id="createCampaignModal" onclick="if (event.target === this) closeCreateCampaignModal()" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" style="backdrop-filter:blur(4px);">
+  <div class="bg-white rounded-xl w-full" style="max-width:28rem;padding:32px;box-shadow:0 20px 40px -12px rgba(15,23,42,0.35);">
+    <h2 class="text-2xl font-bold text-slate-900" style="margin-bottom:24px;">Create Campaign</h2>
+    <form onsubmit="createCampaign(event)">
+      <div style="margin-bottom:16px;">
+        <label class="block text-sm font-medium text-slate-700" style="margin-bottom:8px;">Type <span class="text-red-500">*</span></label>
+        <select id="messageType" class="cf-input w-full border border-slate-300 rounded-lg bg-white" style="padding:10px 12px;">
+          <option value="sms">SMS</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div id="messageTypeOtherWrap" class="hidden" style="margin-bottom:16px;">
+        <label class="block text-sm font-medium text-slate-700" style="margin-bottom:8px;">What is it? <span class="text-red-500">*</span></label>
+        <input type="text" id="messageTypeOther" placeholder="e.g. Email, Phone call" class="cf-input w-full border border-slate-300 rounded-lg" style="padding:10px 12px;" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label class="block text-sm font-medium text-slate-700" style="margin-bottom:8px;">Title <span class="text-red-500">*</span></label>
+        <input type="text" id="campaignTitle" required placeholder="Campaign title" class="cf-input w-full border border-slate-300 rounded-lg" style="padding:10px 12px;" />
+      </div>
+      <div style="margin-bottom:24px;">
+        <label class="block text-sm font-medium text-slate-700" style="margin-bottom:8px;">Message <span class="text-red-500">*</span></label>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button type="button" onclick="formatMessage('bold')" title="Bold selected text" style="border:1px solid #cbd5e1;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;background:#fff;cursor:pointer;">B</button>
+          <button type="button" onclick="formatMessage('italic')" title="Italicize selected text" style="border:1px solid #cbd5e1;border-radius:8px;padding:5px 10px;font-size:13px;font-style:italic;background:#fff;cursor:pointer;">I</button>
+          <button type="button" onclick="formatMessage('upper')" title="UPPERCASE selected text" style="border:1px solid #cbd5e1;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;background:#fff;cursor:pointer;">UPPER</button>
+          <button type="button" onclick="formatMessage('camel')" title="camelCase selected words" style="border:1px solid #cbd5e1;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;background:#fff;cursor:pointer;">camelCase</button>
+        </div>
+        <textarea id="campaignContent" required placeholder="Campaign message" rows="4" class="cf-input w-full border border-slate-300 rounded-lg" style="padding:10px 12px;"></textarea>
+      </div>
+      <div class="flex gap-3" style="padding-top:16px;">
+        <button type="button" onclick="closeCreateCampaignModal()" class="flex-1 border border-slate-300 rounded-lg hover:bg-slate-50 font-medium" style="padding:10px 16px;">Cancel</button>
+        <button type="submit" class="cf-btn-dark flex-1 bg-slate-900 text-white rounded-lg font-medium" style="padding:10px 16px;">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="{% static 'js/app.js' %}"></script>
+<script>
+  async function loadCampaigns() {
+    try {
+      const data = await api("campaigns");
+      const list = document.getElementById("campaignsList");
+
+      if (!data.length) {
+        list.innerHTML = '<div class="text-center text-slate-400" style="padding:48px 0;">No campaigns yet</div>';
+        return;
+      }
+
+      const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+      list.innerHTML = data.map(c => `
+        <div class="cf-card bg-white border border-slate-200 rounded-2xl" style="padding:16px;">
+          <div class="flex justify-between items-start" style="margin-bottom:8px;">
+            <div>
+              <h3 class="font-semibold text-slate-900">${esc(c.title)}</h3>
+              <p class="text-xs text-slate-500">${esc(c.message_type)} • By ${esc(c.admin)}</p>
+            </div>
+            <span class="text-xs bg-blue-100 text-blue-700 rounded-full" style="padding:4px 10px;">${new Date(c.created_at).toLocaleDateString()}</span>
+          </div>
+          <div class="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl" style="padding:12px;">
+            <p class="text-sm text-slate-600 flex-1 whitespace-pre-wrap">${esc(c.content)}</p>
+            <button onclick="copyMessage(this)" data-msg="${esc(c.content)}" class="shrink-0 text-xs border border-slate-300 rounded hover:bg-slate-100 text-slate-600 font-medium" style="padding:4px 8px;">Copy</button>
+          </div>
+        </div>
+      `).join("");
+    } catch (err) {
+      console.error("Error loading campaigns:", err);
+      document.getElementById("campaignsList").innerHTML = '<div class="text-red-500">Error loading campaigns</div>';
+    }
+  }
+
+  async function copyMessage(btn) {
+    const msg = btn.getAttribute("data-msg");
+    try {
+      await navigator.clipboard.writeText(msg);
+      const original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    } catch (err) {
+      alert("Could not copy: " + err.message);
+    }
+  }
+
+  function formatMessage(kind) {
+    const ta = document.getElementById("campaignContent");
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const selected = ta.value.slice(start, end);
+    if (!selected.trim()) {
+      uiAlert("Select some text in the message first.", { type: "info", title: "Nothing selected" });
+      ta.focus();
+      return;
+    }
+    let replacement;
+    if (kind === "bold") replacement = `*${selected}*`;
+    else if (kind === "italic") replacement = `_${selected}_`;
+    else if (kind === "upper") replacement = selected.toUpperCase();
+    else if (kind === "camel") {
+      const words = selected.trim().split(/\s+/);
+      if (words.length < 2) {
+        uiAlert("Select two or more words to camelCase.", { type: "info", title: "Select multiple words" });
+        ta.focus();
+        return;
+      }
+      replacement = words.map((w, i) => {
+        const lower = w.toLowerCase();
+        return i === 0 ? lower : lower.charAt(0).toUpperCase() + lower.slice(1);
+      }).join("");
+    }
+    ta.value = ta.value.slice(0, start) + replacement + ta.value.slice(end);
+    ta.focus();
+    ta.setSelectionRange(start, start + replacement.length);
+  }
+
+  function openCreateCampaignModal() {
+    document.getElementById("createCampaignModal").classList.remove("hidden");
+  }
+
+  function resetMessageType() {
+    const sel = document.getElementById("messageType");
+    sel.value = "sms";
+    sel.closest(".cdd")?._cddSync?.();
+    document.getElementById("messageTypeOtherWrap").classList.add("hidden");
+    document.getElementById("messageTypeOther").value = "";
+  }
+
+  function closeCreateCampaignModal() {
+    document.getElementById("createCampaignModal").classList.add("hidden");
+    document.getElementById("campaignTitle").value = "";
+    document.getElementById("campaignContent").value = "";
+    resetMessageType();
+  }
+
+  document.getElementById("messageType").addEventListener("change", (e) => {
+    document.getElementById("messageTypeOtherWrap").classList.toggle("hidden", e.target.value !== "other");
+  });
+
+  async function createCampaign(e) {
+    e.preventDefault();
+    const title = document.getElementById("campaignTitle").value;
+    const content = document.getElementById("campaignContent").value;
+    const messageType = document.getElementById("messageType").value;
+    const messageTypeOther = document.getElementById("messageTypeOther").value.trim();
+
+    if (messageType === "other" && !messageTypeOther) {
+      document.getElementById("messageTypeOther").focus();
+      return;
+    }
+
+    try {
+      await api("campaigns/create", {
+        method: "POST",
+        body: { title, content, message_type: messageType, message_type_other: messageTypeOther }
+      });
+      closeCreateCampaignModal();
+      loadCampaigns();
+    } catch (err) {
+      alert("Error creating campaign: " + err.message);
+    }
+  }
+
+  lucide.createIcons();
+  loadCampaigns();
+</script>
+{% endblock %}

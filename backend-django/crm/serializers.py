@@ -7,6 +7,7 @@ from .models import (
     CustomFieldDefinition,
     EmailTemplate,
     Lead,
+    LeadComment,
     Notification,
     PipelineStage,
     Product,
@@ -111,13 +112,17 @@ class LeadSerializer(serializers.ModelSerializer):
     product_id = serializers.PrimaryKeyRelatedField(
         source="product", queryset=Product.objects.all(), required=False, allow_null=True
     )
+    products = MiniProductSerializer(many=True, read_only=True)
+    products_id = serializers.PrimaryKeyRelatedField(
+        source="products", queryset=Product.objects.all(), required=False, many=True, write_only=True
+    )
 
     class Meta:
         model = Lead
         fields = [
             "id", "first_name", "last_name", "email", "phone", "job_title",
-            "source", "product", "product_id", "stage", "stage_id", "owner", "owner_id",
-            "score", "value", "notes",
+            "source", "product", "product_id", "products", "products_id", "stage", "stage_id", "owner", "owner_id",
+            "score", "value", "notes", "photo",
             "custom_fields", "lost_reason", "last_activity_at", "converted_at",
             "created_at", "updated_at", "full_name", "activities_count", "tasks_count",
         ]
@@ -172,3 +177,12 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ["id", "data", "read_at", "created_at"]
+
+
+class LeadCommentSerializer(serializers.ModelSerializer):
+    author = MiniUserSerializer(source="user", read_only=True)
+
+    class Meta:
+        model = LeadComment
+        fields = ["id", "body", "author", "created_at"]
+        read_only_fields = ["author", "created_at"]

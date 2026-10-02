@@ -3,7 +3,7 @@
 <div class="space-y-4">
   <div class="flex items-center justify-between">
     <h1 class="text-xl font-bold">Email Templates</h1>
-    <button onclick="openTpl()" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"><i data-lucide="plus" class="h-4 w-4"></i> New Template</button>
+    <button onclick="openTpl()" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"><i data-lucide="plus" class="h-4 w-4"></i> New Template</button>
   </div>
 
   {% verbatim %}
@@ -23,7 +23,7 @@
     <textarea id="tpl_body" required rows="6" placeholder="Email body *" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
     <div class="flex justify-end gap-2">
       <button type="button" onclick="document.getElementById('tplForm').classList.add('hidden')" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
-      <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Save</button>
+      <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save</button>
     </div>
   </form>
 
@@ -33,7 +33,7 @@
       <div class="flex items-start justify-between">
         <div><div class="font-semibold">{{ t.name }}</div><div class="text-sm text-slate-500">{{ t.subject }}</div></div>
         <div class="flex gap-1 text-sm">
-          <button onclick="openBulk({{ t.id }}, '{{ t.name|escapejs }}')" class="rounded p-1.5 text-indigo-600 hover:bg-indigo-50" title="Bulk send"><i data-lucide="send" class="h-4 w-4"></i></button>
+          <button onclick="openBulk({{ t.id }}, '{{ t.name|escapejs }}')" class="rounded p-1.5 text-slate-900 hover:bg-slate-100" title="Bulk send"><i data-lucide="send" class="h-4 w-4"></i></button>
           <button onclick="openTpl({{ t.id }})" class="rounded p-1.5 text-slate-500 hover:bg-slate-100 tpl-edit" data-id="{{ t.id }}" data-name="{{ t.name }}" data-subject="{{ t.subject }}" title="Edit"><i data-lucide="pencil" class="h-4 w-4"></i></button>
           <button onclick="delTpl({{ t.id }}, '{{ t.name|escapejs }}')" class="rounded p-1.5 text-red-500 hover:bg-red-50" title="Delete"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
         </div>
@@ -51,11 +51,11 @@
   <div class="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6" onclick="event.stopPropagation()">
     <h2 id="bulkTitle" class="mb-1 text-lg font-bold">Bulk send</h2>
     <p class="mb-3 text-sm text-slate-500"><span id="bulkCount">0</span> chosen</p>
-    <label class="mb-2 flex items-center gap-2 text-sm font-medium"><input type="checkbox" id="bulkAll" class="accent-indigo-600" /> Select all</label>
+    <label class="mb-2 flex items-center gap-2 text-sm font-medium"><input type="checkbox" id="bulkAll" class="accent-slate-900" /> Select all</label>
     <div id="bulkList" class="max-h-64 space-y-1 overflow-y-auto"></div>
     <div class="mt-4 flex justify-end gap-2">
       <button onclick="closeBulk()" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
-      <button id="bulkSend" onclick="sendBulk()" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Send</button>
+      <button id="bulkSend" onclick="sendBulk()" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Send</button>
     </div>
   </div>
 </div>
@@ -95,7 +95,7 @@
     bulkLeads = r.data.filter((l) => l.email);
     $("bulkList").innerHTML = bulkLeads.map((l) =>
       `<label class="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-slate-50">
-        <input type="checkbox" class="accent-indigo-600 bulk-cb" value="${l.id}" />
+        <input type="checkbox" class="accent-slate-900 bulk-cb" value="${l.id}" />
         ${l.full_name} <span class="text-xs text-slate-400">${l.email}</span></label>`).join("");
     document.querySelectorAll(".bulk-cb").forEach((cb) => cb.addEventListener("change", () => {
       cb.checked ? chosen.add(Number(cb.value)) : chosen.delete(Number(cb.value)); updateBulk();

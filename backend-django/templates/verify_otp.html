@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify code · Momentum</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  {% include "partials/auth_styles.html" %}
+</head>
+<body>
+<div class="stage">
+<div class="split">
+  <div class="pane pane-left">
+    {% include "partials/auth_hero.html" %}
+  </div>
+
+  <div class="pane pane-right">
+    <div class="topbar">
+      <div class="brand">
+        <img src="{% static 'img/momentum-logo-dark.png' %}" alt="Momentum" style="height:34px;width:auto;" />
+        <span class="brand-name">Momentum</span>
+      </div>
+    </div>
+
+    <div class="form-wrap">
+      <h1 class="title">We emailed you a code</h1>
+      <p class="subtitle">Enter the verification code sent to<br><span class="em">{{ email }}</span></p>
+
+      <form method="post" action="/login/verify" id="otpForm">
+        {% csrf_token %}
+        <input type="hidden" name="code" id="code" />
+        <div class="otp-row">
+          <input class="otp-box" name="d0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" autofocus />
+          <input class="otp-box" name="d1" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" name="d2" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" name="d3" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" name="d4" inputmode="numeric" maxlength="1" />
+          <input class="otp-box" name="d5" inputmode="numeric" maxlength="1" />
+        </div>
+
+        {% if info %}<div class="info">{{ info }}</div>{% endif %}
+        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+
+        <button type="submit" class="btn-login"><i data-lucide="shield-check" style="height:18px;width:18px"></i> Verify</button>
+      </form>
+
+      <p class="muted-link">
+        Didn't get your code?
+        <button type="submit" form="resendForm" class="resend">Send a new code</button>
+      </p>
+      <form method="post" action="/login/verify" id="resendForm" style="display:none">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="resend" />
+      </form>
+    </div>
+
+    <div class="legal">
+      <span>&copy; 2020-2026 Momentum</span>
+      <div><a href="mailto:momentum0team@gmail.com">Contact Us</a></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+  lucide.createIcons();
+  (function () {
+    const boxes = Array.from(document.querySelectorAll('.otp-box'));
+    const hidden = document.getElementById('code');
+    const form = document.getElementById('otpForm');
+    const sync = () => { hidden.value = boxes.map(b => b.value).join(''); };
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
+        if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+        sync();
+        if (boxes.every(b => b.value)) form.requestSubmit();
+      });
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+      });
+      box.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const digits = (e.clipboardData.getData('text') || '').replace(/[^0-9]/g, '').slice(0, 6).split('');
+        digits.forEach((d, j) => { if (boxes[j]) boxes[j].value = d; });
+        sync();
+        (boxes[digits.length] || boxes[boxes.length - 1]).focus();
+        if (boxes.every(b => b.value)) form.requestSubmit();
+      });
+    });
+    form.addEventListener('submit', sync);
+  })();
+</script>
+</body>
+</html>

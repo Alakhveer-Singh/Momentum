@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  .cf-card { margin-bottom: 16px; }
+</style>
+<main class="flex-1 overflow-y-auto">
+  <div class="mx-auto" style="max-width:56rem;padding:24px;">
+    <h1 class="font-bold text-slate-900" style="font-size:1.875rem;margin-bottom:32px;">Team Campaigns</h1>
+
+    <div id="campaignsList">
+      <div class="text-center text-slate-400" style="padding:48px 0;">Loading campaigns...</div>
+    </div>
+  </div>
+</main>
+
+<script src="{% static 'js/app.js' %}"></script>
+<script>
+  async function loadCampaigns() {
+    try {
+      const data = await api("campaigns");
+      const list = document.getElementById("campaignsList");
+
+      if (!data.length) {
+        list.innerHTML = '<div class="text-center text-slate-400" style="padding:48px 0;">No campaigns available</div>';
+        return;
+      }
+
+      const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+      list.innerHTML = data.map(c => `
+        <div class="cf-card bg-white border border-slate-200 rounded-2xl" style="padding:24px;">
+          <div class="flex justify-between items-start" style="margin-bottom:16px;">
+            <div>
+              <div class="flex items-center gap-2" style="margin-bottom:8px;">
+                <h3 class="font-semibold text-lg text-slate-900">${esc(c.title)}</h3>
+                <span class="text-xs bg-blue-100 text-blue-700 rounded" style="padding:4px 8px;">${esc(c.message_type)}</span>
+                ${c.read_at ? '<span class="text-xs bg-emerald-100 text-emerald-700 rounded" style="padding:4px 8px;">Read</span>' : '<span class="text-xs bg-amber-100 text-amber-700 rounded" style="padding:4px 8px;">Unread</span>'}
+              </div>
+              <p class="text-sm text-slate-500">From ${esc(c.admin)} • ${new Date(c.created_at).toLocaleString()}</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl" style="padding:16px;margin-bottom:16px;">
+            <p class="text-slate-700 whitespace-pre-wrap flex-1">${esc(c.content)}</p>
+            <button onclick="copyMessage(this)" data-msg="${esc(c.content)}" class="shrink-0 text-xs border border-slate-300 rounded hover:bg-slate-100 text-slate-600 font-medium" style="padding:4px 8px;">Copy</button>
+          </div>
+          <div class="flex justify-between items-center text-xs text-slate-500">
+            <span>Viewed: ${c.viewed_at ? new Date(c.viewed_at).toLocaleString() : 'Not viewed'}</span>
+            ${!c.read_at ? `<button onclick="markAsRead(${c.id})" class="text-blue-700 hover:underline font-medium">Mark as read</button>` : ''}
+          </div>
+        </div>
+      `).join("");
+    } catch (err) {
+      console.error("Error loading campaigns:", err);
+      document.getElementById("campaignsList").innerHTML = '<div class="text-red-500">Error loading campaigns</div>';
+    }
+  }
+
+  async function copyMessage(btn) {
+    const msg = btn.getAttribute("data-msg");
+    try {
+      await navigator.clipboard.writeText(msg);
+      const original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    } catch (err) {
+      alert("Could not copy: " + err.message);
+    }
+  }
+
+  async function markAsRead(campaignId) {
+    try {
+      await api("campaigns/mark-read", {
+        method: "POST",
+        body: { campaign_id: campaignId }
+      });
+      loadCampaigns();
+    } catch (err) {
+      alert("Error marking campaign as read: " + err.message);
+    }
+  }
+
+  lucide.createIcons();
+  loadCampaigns();
+</script>
+{% endblock %}

@@ -1,18 +1,44 @@
 {% extends "base.html" %}
 {% load lms_extras static %}
 {% block content %}
+<style>
+  /* Square lead checkboxes: indigo fill + white check when selected */
+  input.lead-check, input#selectAll {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border: 1.5px solid #cbd5e1; border-radius: 4px;
+    cursor: pointer; position: relative; vertical-align: middle; flex-shrink: 0;
+    transition: background-color .15s ease, border-color .15s ease;
+  }
+  input.lead-check:hover, input#selectAll:hover { border-color: #6366f1; }
+  input.lead-check:checked, input#selectAll:checked { background-color: #6366f1; border-color: #6366f1; }
+  input.lead-check:checked::after, input#selectAll:checked::after {
+    content: ""; position: absolute; left: 5px; top: 2px;
+    width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+</style>
 <div class="space-y-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <h1 class="text-xl font-bold">Leads</h1>
+    <h1 class="flex items-center gap-2 text-xl font-bold">
+      {% if product_obj %}
+      <i data-lucide="{% if product_obj.kind == 'service' %}wrench{% else %}package{% endif %}" class="h-5 w-5 text-slate-700"></i>
+      {{ product_obj.name }}<span class="text-sm font-normal text-slate-400">· leads</span>
+      <a href="/leads" class="ml-1 rounded-md border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500 hover:bg-slate-50">× All leads</a>
+      {% else %}Leads{% endif %}
+    </h1>
     <div class="flex flex-wrap gap-2">
+      <button type="button" onclick="openTodayFollowups()" class="inline-flex items-center gap-1.5 rounded-lg border bg-white px-3 py-2 text-sm hover:bg-amber-50" style="border-color:#fcd34d;">
+        <i data-lucide="clock" class="h-4 w-4" style="color:#f59e0b;"></i> Follow-ups
+        <span id="todayFuBtnCount" class="rounded-full px-1.5 text-xs font-bold" style="background:#fde68a;color:#92400e;">{{ todays_followups|length }}</span>
+      </button>
       <button onclick="download('exports/leads.csv','leads.csv')" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
         <i data-lucide="download" class="h-4 w-4"></i> Export CSV
       </button>
-      <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-        <i data-lucide="upload" class="h-4 w-4"></i> <span id="importLabel">Import CSV</span>
-        <input id="importFile" type="file" accept=".csv" class="hidden" />
-      </label>
-      <button onclick="openLeadModal()" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+      <button type="button" onclick="openImportModal()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+        <i data-lucide="upload" class="h-4 w-4"></i> <span>Import CSV</span>
+      </button>
+      <button onclick="openLeadModal()" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
         <i data-lucide="plus" class="h-4 w-4"></i> New Lead
       </button>
     </div>
@@ -20,23 +46,24 @@
 
   <form method="get" id="filterForm" class="flex flex-wrap items-center gap-2">
     <input type="hidden" name="tab" value="{{ tab }}" />
+    {% if product_obj %}<input type="hidden" name="product" value="{{ product_obj.id }}" />{% endif %}
     <div class="relative">
       <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
       <input name="search" value="{{ search }}" placeholder="Search name, email…"
-             class="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none" />
+             class="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-slate-700 focus:outline-none" />
     </div>
 
     <!-- Multi-source filter -->
     <div class="relative">
       <button type="button" onclick="toggleSourceMenu(event)" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
         <i data-lucide="layers" class="h-4 w-4 text-slate-400"></i>
-        <span id="sourceFilterLabel" class="text-slate-600">{% if selected_sources %}{{ selected_sources|length }} source{{ selected_sources|length|pluralize }}{% else %}All sources{% endif %}</span>
+        <span id="sourceFilterLabel" class="text-slate-600">{% if selected_sources %}{{ selected_sources|length }} first source{{ selected_sources|length|pluralize }}{% else %}All first sources{% endif %}</span>
         <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-slate-400"></i>
       </button>
       <div id="sourceMenu" class="absolute left-0 z-30 mt-1 hidden w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
         {% for s in sources %}
         <label class="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-          <input type="checkbox" name="source" value="{{ s }}" onchange="document.getElementById('filterForm').submit()" {% if s in selected_sources %}checked{% endif %} class="rounded border-slate-300 text-indigo-600" />
+          <input type="checkbox" name="source" value="{{ s }}" onchange="document.getElementById('filterForm').submit()" {% if s in selected_sources %}checked{% endif %} class="rounded border-slate-300 text-slate-900" />
           {{ s|pretty }}
         </label>
         {% endfor %}
@@ -44,14 +71,11 @@
     </div>
 
     <input type="hidden" name="date_from" id="date_from_val" value="{{ date_from }}" />
-    <button type="button" onclick="openFilterCal('from', this)" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-      <i data-lucide="calendar" class="h-4 w-4 text-slate-400"></i>
-      <span id="date_from_label" class="text-slate-600">From date</span>
-    </button>
     <input type="hidden" name="date_to" id="date_to_val" value="{{ date_to }}" />
-    <button type="button" onclick="openFilterCal('to', this)" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-      <i data-lucide="calendar" class="h-4 w-4 text-slate-400"></i>
-      <span id="date_to_label" class="text-slate-600">To date</span>
+    <button type="button" id="drpBtn" onclick="drpOpen(event)" style="display:inline-flex;align-items:center;gap:7px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;padding:7px 12px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;white-space:nowrap;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#64748b;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span id="drpLabel">Last 7 days</span>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#94a3b8;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
 
     {% if can_assign or can_delete %}
@@ -67,7 +91,7 @@
         <div id="bulkOwnerMenu" class="absolute right-0 z-30 mt-1 hidden w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
           {% for u in users %}
           <button type="button" onclick="selectBulkOwner({{ u.id }}, '{{ u.name|escapejs }}')" class="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50">
-            <span class="inline-block h-2 w-2 rounded-full bg-indigo-600 flex-shrink-0"></span>
+            <span class="inline-block h-2 w-2 rounded-full bg-slate-900 flex-shrink-0"></span>
             <span>{{ u.name }}</span>
             <span class="text-xs text-slate-500 ml-auto">{{ u.get_role_display }}</span>
           </button>
@@ -79,7 +103,7 @@
           </button>
         </div>
       </div>
-      <button type="button" id="bulkAssignBtn" onclick="bulkAssign()" disabled class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">Assign</button>
+      <button type="button" id="bulkAssignBtn" onclick="bulkAssign()" disabled class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">Assign</button>
       {% endif %}
       {% if can_delete %}
       <button type="button" id="bulkDeleteBtn" onclick="bulkDelete()" disabled class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:opacity-60"><i data-lucide="trash-2" class="h-4 w-4"></i> Delete</button>
@@ -92,74 +116,180 @@
   <div class="flex items-center gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
     {% with srcq=selected_sources|join:"&source=" %}
     {% with base="?search="|add:search %}
-    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}&tab=" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if not tab %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">All</a>
-    <span class="mx-2 h-5 w-px shrink-0 bg-slate-300"></span>
-    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}&tab=unread" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == 'unread' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">Unread <span class="text-xs text-slate-400">{{ unread_count }}</span></a>
+    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}{% if product_obj %}&product={{ product_obj.id }}{% endif %}&tab=" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if not tab %}bg-white shadow-sm ring-1 ring-inset ring-slate-400 text-slate-900{% else %}text-slate-600 hover:bg-white{% endif %}">All <span class="text-xs text-slate-400">{{ all_count }}</span></a>
     {% for s in stages %}
     <i data-lucide="chevron-right" class="mx-0.5 h-3 w-3 shrink-0 text-slate-400"></i>
-    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}&tab={{ s.id }}" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == s.id|stringformat:'s' %}bg-white shadow-sm ring-1 ring-inset ring-indigo-400 text-indigo-600{% else %}text-slate-600 hover:bg-white{% endif %}">{{ s.name }} <span class="text-xs text-slate-400">{{ stage_counts|get:s.id }}</span></a>
+    <a href="{{ base }}{% if srcq %}&source={{ srcq }}{% endif %}{% if product_obj %}&product={{ product_obj.id }}{% endif %}&tab={{ s.id }}" class="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium {% if tab == s.id|stringformat:'s' %}bg-white shadow-sm ring-1 ring-inset ring-slate-400 text-slate-900{% else %}text-slate-600 hover:bg-white{% endif %}">{{ s.name }} <span class="text-xs text-slate-400">{{ stage_counts|get:s.id }}</span></a>
     {% endfor %}
     {% endwith %}
     {% endwith %}
   </div>
 
+  <style>
+    .stage-pill-wrap { position:relative; display:inline-block; }
+    .stage-dot {
+      position:absolute; left:12px; top:50%; transform:translateY(-50%);
+      width:7px; height:7px; border-radius:9999px; pointer-events:none; z-index:1;
+      box-shadow:0 0 0 3px rgba(255,255,255,.6);
+    }
+    .stage-pill {
+      appearance:none; -webkit-appearance:none;
+      border:none; outline:none; cursor:pointer;
+      padding:6px 28px 6px 26px;
+      border-radius:8px;
+      font-size:12px; font-weight:600; letter-spacing:.01em; line-height:1.3;
+      max-width:180px;
+      transition:filter .12s ease, transform .12s ease, box-shadow .12s ease;
+    }
+    .stage-pill:hover { transform:translateY(-1px); filter:brightness(.96); }
+    .stage-pill:active { transform:translateY(0); }
+    .stage-pill:focus-visible { box-shadow:0 0 0 3px rgba(99,102,241,.35) !important; }
+    .stage-pill option { background:#fff; color:#1e293b; font-weight:600; }
+    .stage-caret {
+      position:absolute; right:9px; top:50%; transform:translateY(-50%);
+      width:13px; height:13px; pointer-events:none; opacity:.8;
+      transition:transform .12s ease;
+    }
+    .stage-pill-wrap:hover .stage-caret { transform:translateY(-50%) translateY(1px); }
+  </style>
+
   <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
     <table class="w-full text-sm">
       <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
         <tr>
-          {% if can_assign or can_delete %}<th class="px-4 py-3"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" class="rounded border-slate-300 text-indigo-600" /></th>{% endif %}
-          <th class="px-4 py-3">Name</th>
-          <th class="px-4 py-3">Phone</th>
-          <th class="px-4 py-3">Source</th>
-          <th class="px-4 py-3">Stage Funnel</th>
-          <th class="px-4 py-3 text-right">Score</th>
+          {% if can_assign or can_delete %}<th class="px-4 py-3 text-center"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" class="rounded border-slate-300 text-slate-900" /></th>{% endif %}
+          <th class="px-4 py-3">
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}sort=created_at&direction={% if request.GET.sort == 'created_at' and request.GET.direction == 'desc' %}asc{% else %}desc{% endif %}" style="display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; cursor: pointer;">
+              Date Added
+              <span style="font-size: 12px;">{% if request.GET.sort == 'created_at' %}{% if request.GET.direction == 'asc' %}↑{% else %}↓{% endif %}{% else %}↓{% endif %}</span>
+            </a>
+          </th>
+          <th class="px-4 py-3">
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}sort=name&direction={% if request.GET.sort == 'name' and request.GET.direction == 'desc' %}asc{% else %}desc{% endif %}" style="display:inline-flex;align-items:center;gap:6px;color:inherit;text-decoration:none;cursor:pointer;">
+              Name
+              <span style="font-size:12px;opacity:{% if request.GET.sort == 'name' %}1{% else %}0.3{% endif %};">{% if request.GET.sort == 'name' and request.GET.direction == 'asc' %}↑{% else %}↓{% endif %}</span>
+            </a>
+          </th>
+          <th class="px-4 py-3">Phone Number</th>
+          <th class="px-4 py-3">
+            <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}sort=updated_at&direction={% if request.GET.sort == 'updated_at' and request.GET.direction == 'desc' %}asc{% else %}desc{% endif %}" style="display:inline-flex;align-items:center;gap:6px;color:inherit;text-decoration:none;cursor:pointer;">
+              Last Updated
+              <span style="font-size:12px;opacity:{% if request.GET.sort == 'updated_at' %}1{% else %}0.3{% endif %};">{% if request.GET.sort == 'updated_at' and request.GET.direction == 'asc' %}↑{% else %}↓{% endif %}</span>
+            </a>
+          </th>
+          <th class="px-4 py-3">Products</th>
+          <th class="px-4 py-3">First Source</th>
+          <th class="px-4 py-3">Stage</th>
+          <th class="px-4 py-3 text-center">Follow-up</th>
+          <th class="px-4 py-3 text-center">Details</th>
         </tr>
       </thead>
       <tbody id="leadsTbody">
         {% for lead in page_obj %}
         <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer lead-row" data-id="{{ lead.id }}">
           {% if can_assign or can_delete %}
-          <td class="px-4 py-3" onclick="event.stopPropagation()">
-            <input type="checkbox" class="lead-check rounded border-slate-300 text-indigo-600" value="{{ lead.id }}" onchange="onLeadCheck()" />
+          <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+            <input type="checkbox" class="lead-check rounded border-slate-300 text-slate-900" value="{{ lead.id }}" onchange="onLeadCheck()" />
           </td>
           {% endif %}
+          <td class="px-4 py-3 whitespace-nowrap text-slate-500">{{ lead.created_at|date:"d M Y" }}</td>
           <td class="px-4 py-3">
-            <div class="lead-name inline-block font-medium text-indigo-600" data-id="{{ lead.id }}">{{ lead.full_name }}</div>
+            <div class="lead-name inline-block font-medium text-slate-900" data-id="{{ lead.id }}">{{ lead.full_name }}</div>
             <div class="text-xs text-slate-400">{{ lead.custom_fields.current_profile|default:lead.job_title|default:"—" }}</div>
           </td>
           <td class="px-4 py-3">{{ lead.phone|default:"—" }}</td>
+          <td class="px-4 py-3 whitespace-nowrap text-slate-500">{{ lead.updated_at|date:"d M Y"|default:"—" }}</td>
           <td class="px-4 py-3">
-            <div style="position:relative;display:inline-block;" onclick="event.stopPropagation()">
-              <select onchange="changeSource({{ lead.id }}, this.value);" style="appearance:none;-webkit-appearance:none;background:#f1f5f9;border:none;padding:4px 22px 4px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#475569;cursor:pointer;outline:none;">
-                {% for s in sources %}<option value="{{ s }}" {% if s == lead.source %}selected{% endif %}>{{ s|pretty }}</option>{% endfor %}
-              </select>
-              <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;color:#94a3b8;font-size:9px;">▾</span>
-            </div>
+            {% with prods=lead.products.all %}
+              {% if prods %}
+                {% with count=prods|length %}
+                  {% if count > 1 %}
+                    <button type="button" onclick="event.stopPropagation();showProdsPopup(this, [{% for p in prods %}'{{ p.name|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}])" style="display:inline-block;background:#e0e7ff;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;color:#4f46e5;margin:1px 2px 1px 0;border:none;cursor:pointer;">All Prods.</button>
+                  {% else %}
+                    <span style="display:inline-block;background:#f1f5f9;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:500;color:#475569;margin:1px 2px 1px 0;">{{ prods|first|default:"" }}</span>
+                  {% endif %}
+                {% endwith %}
+              {% else %}—{% endif %}
+            {% endwith %}
           </td>
           <td class="px-4 py-3">
-            <div style="position:relative;display:inline-block;" onclick="event.stopPropagation()">
-              <select onchange="changeStage({{ lead.id }}, this.value);" style="appearance:none;-webkit-appearance:none;background:{{ lead.stage.color }};border:none;padding:4px 22px 4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;outline:none;">
-                {% for s in stages %}<option value="{{ s.id }}" {% if s.id == lead.stage.id %}selected{% endif %} style="background:#fff;color:#1e293b;">{{ s.name }}</option>{% endfor %}
+            <span style="display:inline-block;background:#f1f5f9;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;color:#475569;">{{ lead.source|pretty|default:"—" }}</span>
+          </td>
+          <td class="px-4 py-3">
+            <div class="stage-pill-wrap" onclick="event.stopPropagation()">
+              <span class="stage-dot" style="background-color:{{ lead.stage.color }};"></span>
+              <select class="stage-pill" data-no-enhance onchange="changeStage({{ lead.id }}, this.value);" style="color:{{ lead.stage.color }};background-color:{{ lead.stage.color }}14;box-shadow:inset 0 0 0 1px {{ lead.stage.color }}33;">
+                {% for s in stages %}<option value="{{ s.id }}" {% if s.id == lead.stage.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
               </select>
-              <span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);pointer-events:none;color:rgba(255,255,255,.8);font-size:9px;">▾</span>
+              <svg class="stage-caret" style="color:{{ lead.stage.color }};" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             </div>
           </td>
-          <td class="px-4 py-3 text-right font-semibold">{{ lead.score }}</td>
+          <td id="fuCell_{{ lead.id }}" class="px-4 py-3 whitespace-nowrap text-center">{% if lead.followup_label %}<span style="color:#dc2626;font-weight:600;">Follow-up {{ lead.followup_label }}</span>{% else %}<span class="text-slate-400">-</span>{% endif %}</td>
+          <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+            <a href="/leads/{{ lead.id }}" title="View full details" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><i data-lucide="file-text" class="h-4 w-4"></i></a>
+          </td>
         </tr>
         {% empty %}
-        <tr><td colspan="{% if can_assign or can_delete %}6{% else %}5{% endif %}" class="px-4 py-8 text-center text-slate-400">No leads found.</td></tr>
+        <tr><td colspan="{% if can_assign or can_delete %}9{% else %}8{% endif %}" class="px-4 py-8 text-center text-slate-400">No leads found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
-  <div class="flex flex-col items-center gap-2 text-sm">
-    <span id="leadsCount" class="text-slate-500" data-total="{{ page_obj.paginator.count }}">Showing {{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
-    {% if page_obj.has_next %}
-    <button type="button" id="loadMoreBtn" data-next="2" onclick="loadMoreLeads()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-600 hover:bg-slate-50">
-      <i data-lucide="chevron-down" class="h-4 w-4"></i> <span>More…</span>
-    </button>
+  <div class="mt-4 flex flex-wrap items-center justify-start gap-4 text-sm">
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" aria-label="Pagination">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" aria-label="Previous page" class="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"><i data-lucide="chevron-left" class="h-4 w-4"></i></a>
+      {% else %}
+      <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-300"><i data-lucide="chevron-left" class="h-4 w-4"></i></span>
+      {% endif %}
+      {% for num in page_range %}
+        {% if num == page_obj.paginator.ELLIPSIS %}
+        <span class="inline-flex h-9 w-9 items-end justify-center pb-2 text-lg leading-none tracking-widest text-slate-300">···</span>
+        {% elif num == page_obj.number %}
+        <span aria-current="page" class="inline-flex h-9 min-w-9 items-center justify-center rounded-xl bg-slate-900 px-3 font-semibold text-white shadow-sm">{{ num }}</span>
+        {% else %}
+        <a href="?page={{ num }}{% if querystring %}&{{ querystring }}{% endif %}" class="inline-flex h-9 min-w-9 items-center justify-center rounded-xl px-3 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" aria-label="Next page" class="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"><i data-lucide="chevron-right" class="h-4 w-4"></i></a>
+      {% else %}
+      <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-300"><i data-lucide="chevron-right" class="h-4 w-4"></i></span>
+      {% endif %}
+    </nav>
     {% endif %}
+    <div class="flex items-center gap-2 text-slate-500">
+      <label for="pageSize">Show</label>
+      <input id="pageSize" type="number" min="1" max="500" value="{{ page_size }}" list="pageSizeOptions"
+        onchange="const p=new URLSearchParams(window.location.search);p.set('page_size', this.value||20);p.delete('page');window.location.search=p.toString();"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+        style="width:5rem;" class="rounded-lg border border-slate-300 px-2 py-1.5 text-center text-slate-700" />
+      <datalist id="pageSizeOptions"><option value="10"></option><option value="20"></option><option value="50"></option><option value="100"></option><option value="200"></option></datalist>
+      <span>per page</span>
+    </div>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div id="importOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:60;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px);">
+  <div style="background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.25);width:100%;max-width:420px;overflow:hidden;">
+    <div style="padding:20px 24px 14px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-weight:700;font-size:17px;color:#0f172a;">Import leads from CSV</div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:2px;">Pick a CSV file. Columns are auto-detected from the header row.</div>
+    </div>
+    <div style="padding:18px 24px;display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">CSV file</label>
+        <input id="importFile" type="file" accept=".csv" style="width:100%;font-size:14px;color:#475569;" />
+        <div style="font-size:12px;color:#94a3b8;margin-top:6px;">Headers like Name, Email, Phone, Company, First Source, Stage, Profile, Value are auto-detected. A single "Name" column is split into first/last.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:14px 24px 18px;border-top:1px solid #f1f5f9;">
+      <button type="button" onclick="closeImportModal()" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button type="button" id="importGo" onclick="runImport()" style="flex:1;background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Import</button>
+    </div>
   </div>
 </div>
 
@@ -172,6 +302,7 @@
       <h2 id="panelTitle" style="font-weight:700;font-size:18px;line-height:1.35;word-break:break-word;color:#0f172a;margin:0;"></h2>
     </div>
     <div style="flex-shrink:0;display:flex;gap:4px;margin-top:2px;">
+      <button onclick="editLeadFromPanel()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;border-radius:6px;" onmouseover="this.style.color='#4f46e5';this.style.background='#eef2ff'" onmouseout="this.style.color='#94a3b8';this.style.background='none'" title="Edit lead"><i data-lucide="pencil" class="h-5 w-5"></i></button>
       {% if can_delete %}<button id="panelDeleteBtn" style="background:none;border:none;cursor:pointer;color:#cbd5e1;padding:4px;border-radius:6px;" onmouseover="this.style.color='#dc2626';this.style.background='#fef2f2'" onmouseout="this.style.color='#cbd5e1';this.style.background='none'" title="Delete lead"><i data-lucide="trash-2" class="h-5 w-5"></i></button>{% endif %}
       <button onclick="closeLeadPanel()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;border-radius:6px;" onmouseover="this.style.color='#475569';this.style.background='#f1f5f9'" onmouseout="this.style.color='#94a3b8';this.style.background='none'"><i data-lucide="x" class="h-5 w-5"></i></button>
     </div>
@@ -180,25 +311,92 @@
 </div>
 <div id="panelOverlay" class="fixed inset-0 bg-black/40 hidden z-30" onclick="closeLeadPanel()"></div>
 
-<!-- Filter date calendar popup -->
-<div id="filterCal" style="position:absolute;display:none;z-index:55;background:#fff;border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.18);width:288px;padding:16px;border:1px solid #f1f5f9;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-    <button type="button" onclick="filterCalMonth(-1)" style="background:#f1f5f9;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;line-height:1;">‹</button>
-    <div id="filterCalLabel" style="font-weight:600;font-size:14px;color:#0f172a;"></div>
-    <button type="button" onclick="filterCalMonth(1)" style="background:#f1f5f9;border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;line-height:1;">›</button>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px;">
-    <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Su</div>
-    <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Mo</div>
-    <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Tu</div>
-    <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">We</div>
-    <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Th</div>
-    <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Fr</div>
-    <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:4px 0;">Sa</div>
-  </div>
-  <div id="filterCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
-  <div style="margin-top:12px;display:flex;justify-content:flex-end;border-top:1px solid #f1f5f9;padding-top:10px;">
-    <button type="button" onclick="clearFilterDate()" style="background:none;border:none;color:#6366f1;font-size:13px;font-weight:600;cursor:pointer;">Clear</button>
+<!-- Date Range Picker Panel -->
+<div id="drpPanel" style="display:none;position:fixed;z-index:200;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.22);border:1px solid #e2e8f0;">
+  <div style="display:flex;">
+    <!-- LEFT: Preset list -->
+    <div style="width:192px;border-right:1px solid #f1f5f9;padding:12px 0;overflow-y:auto;max-height:500px;border-radius:12px 0 0 12px;">
+      <div style="padding:2px 14px 6px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;">Recently used</div>
+      <div id="drpRecentList"></div>
+      <div style="height:1px;background:#f1f5f9;margin:6px 14px;"></div>
+      <div id="drpPresetList"></div>
+    </div>
+    <!-- RIGHT: Calendars + controls -->
+    <div style="padding:16px 20px;">
+      <!-- Month nav -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <button type="button" onclick="drpNavMonth(-1)" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:18px;line-height:1;flex-shrink:0;">‹</button>
+        <div style="display:flex;gap:0;">
+          <div id="drpLeftLabel" style="font-weight:700;font-size:14px;color:#0f172a;text-align:center;width:210px;"></div>
+          <div id="drpRightLabel" style="font-weight:700;font-size:14px;color:#0f172a;text-align:center;width:210px;"></div>
+        </div>
+        <button type="button" onclick="drpNavMonth(1)" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:18px;line-height:1;flex-shrink:0;">›</button>
+      </div>
+      <!-- Two calendars side by side -->
+      <div style="display:flex;gap:0;">
+        <!-- Left calendar -->
+        <div style="width:210px;">
+          <div style="display:grid;grid-template-columns:repeat(7,30px);margin-bottom:4px;">
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Sun</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Mon</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Tue</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Wed</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Thu</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Fri</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Sat</div>
+          </div>
+          <div id="drpLeftGrid" onmouseleave="drpDoLeave()" style="display:grid;grid-template-columns:repeat(7,30px);"></div>
+        </div>
+        <!-- Divider -->
+        <div style="width:1px;background:#f1f5f9;margin:0 16px;"></div>
+        <!-- Right calendar -->
+        <div style="width:210px;">
+          <div style="display:grid;grid-template-columns:repeat(7,30px);margin-bottom:4px;">
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Sun</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Mon</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Tue</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Wed</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Thu</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Fri</div>
+            <div style="text-align:center;font-size:11px;font-weight:600;color:#94a3b8;padding:3px 0;">Sat</div>
+          </div>
+          <div id="drpRightGrid" onmouseleave="drpDoLeave()" style="display:grid;grid-template-columns:repeat(7,30px);"></div>
+        </div>
+      </div>
+      <!-- Bottom controls -->
+      <div style="margin-top:14px;border-top:1px solid #f1f5f9;padding-top:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <input type="checkbox" id="drpCompare" style="width:15px;height:15px;border-radius:3px;cursor:pointer;accent-color:#334155;" />
+          <label for="drpCompare" style="font-size:13px;color:#374151;cursor:pointer;font-weight:500;user-select:none;">Compare</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <select id="drpCustomPreset" onchange="drpCustomPresetChange(this.value)" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;color:#374151;outline:none;cursor:pointer;background:#fff;min-width:130px;">
+            <option value="">Custom</option>
+            <option value="Today">Today</option>
+            <option value="Yesterday">Yesterday</option>
+            <option value="Today and yesterday">Today and yesterday</option>
+            <option value="Last 7 days">Last 7 days</option>
+            <option value="Last 14 days">Last 14 days</option>
+            <option value="Last 28 days">Last 28 days</option>
+            <option value="Last 30 days">Last 30 days</option>
+            <option value="This week">This week</option>
+            <option value="Last week">Last week</option>
+            <option value="This month">This month</option>
+            <option value="Last month">Last month</option>
+          </select>
+          <input id="drpCustomFrom" type="text" readonly placeholder="Start date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;color:#374151;outline:none;width:105px;background:#f8fafc;cursor:default;" />
+          <span style="color:#94a3b8;font-weight:600;">-</span>
+          <input id="drpCustomTo" type="text" readonly placeholder="End date" style="border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;color:#374151;outline:none;width:105px;background:#f8fafc;cursor:default;" />
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:11px;color:#94a3b8;">Dates are shown in Kolkata Time</div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" onclick="drpCancel()" style="border:1px solid #e2e8f0;border-radius:9px;padding:8px 18px;font-size:13px;font-weight:600;color:#374151;background:#fff;cursor:pointer;">Cancel</button>
+            <button type="button" onclick="drpApply()" style="border:none;border-radius:9px;padding:8px 20px;font-size:13px;font-weight:600;color:#fff;background:#334155;cursor:pointer;">Update</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -241,9 +439,69 @@
     </div>
   </div>
 </div>
+
+<!-- Today's Follow-ups popup -->
+<div id="todayFuOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:60;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);" onclick="if(event.target.id==='todayFuOverlay')closeTodayFollowups()">
+  <div style="background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.32);width:100%;max-width:620px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="background:#f59e0b;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;color:#fff;">
+        <i data-lucide="clock" style="width:20px;height:20px;"></i>
+        <span style="font-size:17px;font-weight:800;">Today's Follow-ups</span>
+        <span id="todayFuCount" style="background:rgba(255,255,255,.28);border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;">{{ todays_followups|length }}</span>
+      </div>
+      <button type="button" onclick="closeTodayFollowups()" style="background:rgba(255,255,255,.22);border:none;border-radius:9px;width:30px;height:30px;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+    </div>
+
+    <div style="padding:18px 22px;overflow-y:auto;background:#fafafa;">
+      <div class="mb-3 flex justify-end">
+        <button type="button" onclick="toggleFollowupForm()" class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white" style="background:#f59e0b;"><i data-lucide="plus" class="h-4 w-4"></i> Add follow-up</button>
+      </div>
+      <form id="followupForm" class="hidden mb-3 grid grid-cols-2 gap-2 rounded-lg bg-white p-3 md:grid-cols-4" style="border:1px solid #fef3c7;">
+        <input id="fu_title" required placeholder="Follow-up title *" class="col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input id="fu_due" type="time" class="rounded-lg border border-slate-300 px-2 py-2 text-sm" title="Time today" />
+        <select id="fu_priority" class="rounded-lg border border-slate-300 px-2 py-2 text-sm"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+        {% if can_assign %}
+        <select id="fu_assignee" class="col-span-2 rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-3">{% for u in users %}<option value="{{ u.id }}" {% if u.id == me.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
+        {% endif %}
+        <button class="rounded-lg px-3 py-2 text-sm font-semibold text-white {% if not can_assign %}col-span-2 md:col-span-4{% else %}md:col-span-1{% endif %}" style="background:#f59e0b;">Add</button>
+      </form>
+      <div id="todayFuList" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Log activity (required before completing a follow-up) -->
+<div id="logActOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:70;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);" onclick="if(event.target.id==='logActOverlay')closeLogActivity()">
+  <div style="background:#fff;border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.3);width:100%;max-width:420px;overflow:hidden;">
+    <div style="padding:18px 22px 12px;border-bottom:1px solid #f1f5f9;">
+      <div style="font-weight:700;font-size:16px;color:#0f172a;display:flex;align-items:center;gap:8px;"><i data-lucide="clipboard-list" style="width:18px;height:18px;color:#6366f1;"></i> Log activity first</div>
+      <div id="logActLead" style="font-size:13px;color:#94a3b8;margin-top:3px;"></div>
+    </div>
+    <div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:5px;">Type</label>
+        <select id="logActType" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:9px 11px;font-size:14px;outline:none;">
+          <option value="call">Call</option><option value="meeting">Meeting</option><option value="email">Email</option><option value="note">Note</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:5px;">Summary *</label>
+        <input id="logActSubject" placeholder="e.g. Called, discussed fees" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:9px 11px;font-size:14px;outline:none;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:5px;">Note (optional)</label>
+        <textarea id="logActNote" rows="2" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:9px 11px;font-size:14px;outline:none;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:12px 22px 18px;border-top:1px solid #f1f5f9;">
+      <button type="button" onclick="closeLogActivity()" style="flex:1;background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button type="button" id="logActSaveBtn" onclick="saveLogActivityAndComplete()" style="flex:1;background:#6366f1;color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;">Save &amp; complete</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block page_js %}
-<script src="{% static 'js/lead_modal.js' %}"></script>
+<script src="{% static 'js/lead_modal.js' %}?v={% now 'U' %}"></script>
 <script>
   const sources = [{% for s in sources %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}];
   const stages = [{% for s in stages %}{"id":{{ s.id }},"name":"{{ s.name|escapejs }}","color":"{{ s.color }}"}{% if not forloop.last %},{% endif %}{% endfor %}];
@@ -251,53 +509,18 @@
   function pretty(s) { return (s||'').replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()); }
   function scoreColor(n) { return n>=70?'#16a34a':n>=40?'#d97706':'#dc2626'; }
 
-  // Row click opens side panel; hover preview only over the lead NAME.
-  let hoverTimer = null, curX = 0, curY = 0;
+  // Student-profile field keys stored in custom_fields (kept in sync with backend LEAD_PROFILE_FIELDS).
+  const PROFILE_KEYS = ["gender","dob","whatsapp","education","qualification","guardian_name",
+    "guardian_occupation","current_address","guardian_number","permanent_address",
+    "batch_time","batch_number","batch_start"];
+
+  // Row click opens side panel
   function bindLeadRow(row) {
     row.addEventListener("click", () => {
-      document.getElementById("lead-hover-card")?.remove();
       openLeadPanel(row.dataset.id);
     });
-    const nameEl = row.querySelector(".lead-name");
-    if (nameEl) {
-      nameEl.addEventListener("mousemove", e => { curX = e.clientX; curY = e.clientY; });
-      nameEl.addEventListener("mouseenter", () => {
-        hoverTimer = setTimeout(() => loadLeadPreview(nameEl.dataset.id, curX, curY), 500);
-      });
-      nameEl.addEventListener("mouseleave", () => {
-        clearTimeout(hoverTimer);
-        document.getElementById("lead-hover-card")?.remove();
-      });
-    }
   }
   document.querySelectorAll(".lead-row").forEach(bindLeadRow);
-
-  async function loadMoreLeads() {
-    const btn = document.getElementById("loadMoreBtn");
-    if (!btn) return;
-    const next = btn.dataset.next;
-    const label = btn.querySelector("span");
-    label.textContent = "Loading…";
-    const params = new URLSearchParams(window.location.search);
-    params.set("page", next);
-    try {
-      const res = await fetch(`${window.location.pathname}?${params.toString()}`, { headers: { "X-Requested-With": "fetch" } });
-      const html = await res.text();
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      const newRows = doc.querySelectorAll("#leadsTbody .lead-row");
-      const tbody = document.getElementById("leadsTbody");
-      newRows.forEach(r => { const node = document.importNode(r, true); tbody.appendChild(node); bindLeadRow(node); });
-      lucide.createIcons();
-      // update count + next page / hide button when done
-      const newCount = doc.getElementById("leadsCount");
-      if (newCount) document.getElementById("leadsCount").textContent = newCount.textContent;
-      if (doc.getElementById("loadMoreBtn")) { btn.dataset.next = String(Number(next) + 1); label.textContent = "More…"; }
-      else btn.remove();
-    } catch (e) {
-      label.textContent = "More…";
-      alert("Could not load more leads.");
-    }
-  }
 
   // --- Checkbox selection -> top Assign/Delete toolbar --------------------
   let selectedBulkOwnerId = null;
@@ -345,21 +568,21 @@
   async function bulkAssign() {
     const ids = selectedLeadIds();
     if (!ids.length) return;
-    if (selectedBulkOwnerId === null) { alert("Pick who to assign to."); return; }
+    if (selectedBulkOwnerId === null) { uiAlert("Pick who to assign to.", { type: "info", title: "Select an owner" }); return; }
     const owner_id = selectedBulkOwnerId === 0 ? null : Number(selectedBulkOwnerId);
     try {
       await api("leads/bulk-assign", { method: "POST", body: { ids, owner_id } });
       location.reload();
-    } catch (err) { alert(err.data?.detail || "Assign failed."); }
+    } catch (err) { uiAlert(err.data?.detail || "Assign failed.", { type: "error" }); }
   }
   async function bulkDelete() {
     const ids = selectedLeadIds();
     if (!ids.length) return;
-    if (!confirm(`Delete ${ids.length} lead${ids.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    if (!await uiConfirm("Delete leads?", `Delete ${ids.length} lead${ids.length > 1 ? "s" : ""}? This cannot be undone.`, { confirmText: "Delete", danger: true })) return;
     try {
       await api("leads/bulk-delete", { method: "POST", body: { ids } });
       location.reload();
-    } catch (err) { alert(err.data?.detail || "Delete failed."); }
+    } catch (err) { uiAlert(err.data?.detail || "Delete failed.", { type: "error" }); }
   }
 
   // Multi-source filter dropdown toggle
@@ -391,7 +614,7 @@
         <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Email</span><span style="word-break:break-all;">${lead.email||'—'}</span></div>
         <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Phone</span><span>${lead.phone||'—'}</span></div>
         <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Score</span><span style="font-weight:600;color:${scoreColor(lead.score)}">${lead.score}/100</span></div>
-        <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">Source</span><span>${pretty(lead.source)}</span></div>
+        <div style="display:flex;gap:6px;"><span style="color:#94a3b8;width:46px;flex-shrink:0;">First Source</span><span>${pretty(lead.source)}</span></div>
       </div>
     `;
     document.body.appendChild(card);
@@ -419,18 +642,41 @@
         `<div id="panelSubtitle" style="font-size:13px;color:#94a3b8;font-weight:400;margin-top:1px;">${lead.job_title}</div>`);
     }
 
-    // stage switcher breadcrumb (color-coded, chevron-separated)
-    const stageButtons = stages.map((s, i) => {
-      const active = s.id === lead.stage_id;
+    // Stage journey: the actual path this lead has travelled, rebuilt from its
+    // stage-change history (in the real order it happened — back-and-forth, Lost,
+    // Won, all of it). The current stage is the last chip and is highlighted.
+    const stageById = {};
+    stages.forEach((s) => { stageById[s.id] = s; });
+    // The lead's own stage may be a product-specific one not in the global list — seed it.
+    if (lead.stage) stageById[lead.stage.id] = stageById[lead.stage.id] || lead.stage;
+    const nameById = {};  // fallback names for stages no longer in the funnel
+    const changes = (lead.activities || [])
+      .filter((a) => a.type === "stage_change" && a.metadata)
+      .sort((a, b) => new Date(a.occurred_at || a.created_at) - new Date(b.occurred_at || b.created_at));
+    changes.forEach((a) => {
+      const m = /^(.+?)\s*(?:→|->)\s*(.+)$/.exec(a.subject || "");
+      if (m) {
+        if (a.metadata.from != null) nameById[a.metadata.from] = m[1].trim();
+        if (a.metadata.to != null) nameById[a.metadata.to] = m[2].trim();
+      }
+    });
+    let journey = changes.length
+      ? [changes[0].metadata.from, ...changes.map((a) => a.metadata.to)].filter((v) => v != null)
+      : [lead.stage_id];
+    if (journey[journey.length - 1] !== lead.stage_id) journey.push(lead.stage_id);
+
+    const stageButtons = journey.map((sid, i) => {
+      const s = stageById[sid] || { id: sid, name: nameById[sid] || "—", color: "#94a3b8" };
+      const active = i === journey.length - 1;  // current stage = end of the journey
       const chip = active
         ? `<span onclick="panelChangeStage(${id},${s.id})" style="background:${s.color};color:#fff;border-radius:8px;padding:3px 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">${s.name}</span>`
         : `<span onclick="panelChangeStage(${id},${s.id})" style="color:${s.color};font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;padding:3px 4px;border-radius:8px;transition:background .12s;" onmouseover="this.style.background='${s.color}14'" onmouseout="this.style.background='transparent'">${s.name}</span>`;
-      const sep = i < stages.length - 1 ? `<span style="color:#cbd5e1;font-size:13px;">›</span>` : '';
+      const sep = i < journey.length - 1 ? `<span style="color:#cbd5e1;font-size:13px;">›</span>` : "";
       return chip + sep;
-    }).join('');
+    }).join("");
 
-    // custom fields
-    const cfRows = Object.entries(lead.custom_fields||{}).map(([k,v])=>
+    // custom fields (skip student-profile keys + internal 'sources' — shown elsewhere)
+    const cfRows = Object.entries(lead.custom_fields||{}).filter(([k])=>!PROFILE_KEYS.includes(k) && k!=='sources').map(([k,v])=>
       `<div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">${pretty(k)}</dt><dd style="font-weight:500;text-align:right;">${v===true?'Yes':v===false?'No':v}</dd></div>`
     ).join('');
 
@@ -490,6 +736,7 @@
         <dl style="font-size:14px;display:grid;gap:10px;">
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Email</dt><dd style="font-weight:500;text-align:right;word-break:break-all;">${lead.email||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Phone</dt><dd style="font-weight:500;">${lead.phone||'—'}</dd></div>
+          ${lead.products&&lead.products.length?`<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><dt style="color:#94a3b8;flex-shrink:0;">Products</dt><dd style="font-weight:500;text-align:right;">${lead.products.map(p=>`<span style="display:inline-block;background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:12px;margin:1px;">${p.name}</span>`).join('')}</dd></div>`:''}
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Owner</dt><dd style="font-weight:500;">${lead.owner?.name||'—'}</dd></div>
           <div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Created</dt><dd style="font-weight:500;">${new Date(lead.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>
           ${lead.last_activity_at?`<div style="display:flex;justify-content:space-between;gap:8px;"><dt style="color:#94a3b8;flex-shrink:0;">Last activity</dt><dd style="font-weight:500;">${new Date(lead.last_activity_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</dd></div>`:''}
@@ -505,7 +752,7 @@
         <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Log Activity</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <select id="pnl_type" style="appearance:none;-webkit-appearance:none;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;color:#475569;background:#fff;cursor:pointer;outline:none;">
-            <option value="call">Call</option><option value="email">Email</option><option value="meeting">Meeting</option><option value="note">Note</option>
+            <option value="call">Call</option><option value="meeting">Meeting</option><option value="email">Email</option><option value="note">Note</option>
           </select>
           <input id="pnl_subject" placeholder="Subject *" style="flex:1;min-width:120px;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelLogActivity(${id})" />
           <button onclick="panelLogActivity(${id})" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Log</button>
@@ -517,8 +764,20 @@
         <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Activity Timeline</div>
         <div style="font-size:13px;">${actHTML}</div>
       </div>
+
+      <!-- Discussion -->
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-top:12px;margin-bottom:8px;">
+        <div style="font-weight:600;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Discussion</div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Tip: type @firstname to notify a teammate.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="pnl_comment" placeholder="Write a comment…" style="flex:1;min-width:120px;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;color:#1e293b;" onkeydown="if(event.key==='Enter')panelPostComment(${id})" />
+          <button onclick="panelPostComment(${id})" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Post</button>
+        </div>
+        <div id="pnl_comments" style="margin-top:12px;font-size:13px;color:#94a3b8;">Loading…</div>
+      </div>
     `;
     lucide.createIcons();
+    loadPanelComments(id);
     const savedSources = (lead.custom_fields && lead.custom_fields.sources) || (lead.source ? [lead.source] : []);
     document.querySelectorAll(".pnl-source-check").forEach(cb => { cb.checked = savedSources.includes(cb.value); });
     renderPanelSourceLabel();
@@ -579,6 +838,38 @@
         const sel = row.querySelector('select:last-of-type');
         if (sel) { sel.parentElement.querySelector('select').style.background = stg.color; sel.value = stageId; }
       }
+    }
+  }
+
+  // --- Discussion (comments + @mentions) in the lead drawer ---
+  function highlightMentions(s) {
+    return esc(s).replace(/@([A-Za-z0-9_.]+)/g, '<span style="font-weight:600;color:#4f46e5;">@$1</span>');
+  }
+  async function loadPanelComments(leadId) {
+    const box = document.getElementById("pnl_comments");
+    if (!box) return;
+    try {
+      const data = await api(`leads/${leadId}/comments`);
+      if (!data.length) { box.innerHTML = '<span style="color:#94a3b8;">No comments yet. Start the discussion.</span>'; return; }
+      box.innerHTML = data.map((c) => `
+        <div style="border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:10px;margin-bottom:8px;">
+          <div style="color:#334155;">${highlightMentions(c.body)}</div>
+          <div style="color:#94a3b8;font-size:11px;margin-top:4px;">${esc(c.author?.name || "Unknown")} · ${new Date(c.created_at).toLocaleString()}</div>
+        </div>`).join("");
+    } catch (err) {
+      box.innerHTML = '<span style="color:#ef4444;">Error loading comments.</span>';
+    }
+  }
+  async function panelPostComment(leadId) {
+    const input = document.getElementById("pnl_comment");
+    const body = (input.value || "").trim();
+    if (!body) return;
+    try {
+      await api(`leads/${leadId}/comments`, { method: "POST", body: { body } });
+      input.value = "";
+      loadPanelComments(leadId);
+    } catch (err) {
+      uiAlert(err.data?.detail || "Could not post comment.", { type: "error" });
     }
   }
 
@@ -661,92 +952,244 @@
     api("tasks", { method: "POST", body: {
       lead_id: leadId, title, due_at: due, priority: "medium", status: "pending", assigned_to: userId
     }}).then(() => { closeFollowupModal(); openLeadPanel(leadId); })
-       .catch(err => alert("Failed: " + (err.data?.message || err.message)));
+       .catch(err => uiAlert(err.data?.message || err.message, { type: "error", title: "Could not create follow-up" }));
   }
 
-  // --- Filter date calendar -----------------------------------------------
-  let filterTarget = null;        // 'from' or 'to'
-  let filterViewDate = new Date();
-  const FILTER_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  // --- Date Range Picker ---------------------------------------------------
+  const DRP_PRESETS = ["Today","Yesterday","Today and yesterday","Last 7 days","Last 14 days","Last 28 days","Last 30 days","This week","Last week","This month","Last month","Maximum"];
+  const DRP_ML = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DRP_MS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  let drpFrom=null, drpTo=null, drpSelStep=0, drpHoverD=null;
+  let drpLY=0, drpLM=0, drpActivePreset=null;
+  let drpSavedFrom=null, drpSavedTo=null, drpSavedPreset=null;
 
-  function fmtFilterLabel(iso) {
-    if (!iso) return null;
-    const [y, m, d] = iso.split("-").map(Number);
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return `${d} ${months[m-1]} ${y}`;
-  }
+  function drpIso(d){if(!d)return"";const m=d.getMonth()+1,dy=d.getDate();return`${d.getFullYear()}-${m<10?'0'+m:m}-${dy<10?'0'+dy:dy}`;}
+  function drpFmt(d){if(!d)return"";return`${DRP_MS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;}
+  function drpParse(iso){if(!iso)return null;const[y,m,d]=iso.split("-").map(Number);return new Date(y,m-1,d);}
 
-  function openFilterCal(which, btn) {
-    filterTarget = which;
-    const cur = document.getElementById(`date_${which}_val`).value;
-    if (cur) { const [y, m] = cur.split("-").map(Number); filterViewDate = new Date(y, m-1, 1); }
-    else filterViewDate = new Date();
-    const cal = document.getElementById("filterCal");
-    const rect = btn.getBoundingClientRect();
-    cal.style.top = `${rect.bottom + window.scrollY + 6}px`;
-    cal.style.left = `${rect.left + window.scrollX}px`;
-    cal.style.display = "block";
-    renderFilterCal();
-  }
-
-  function closeFilterCal() { document.getElementById("filterCal").style.display = "none"; filterTarget = null; }
-
-  function filterCalMonth(delta) {
-    filterViewDate = new Date(filterViewDate.getFullYear(), filterViewDate.getMonth() + delta, 1);
-    renderFilterCal();
-  }
-
-  function renderFilterCal() {
-    document.getElementById("filterCalLabel").textContent = `${FILTER_MONTHS[filterViewDate.getMonth()]} ${filterViewDate.getFullYear()}`;
-    const year = filterViewDate.getFullYear(), month = filterViewDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const today = new Date(); today.setHours(0,0,0,0);
-    const selIso = document.getElementById(`date_${filterTarget}_val`).value;
-    let html = "";
-    for (let i = 0; i < firstDay; i++) html += `<div></div>`;
-    for (let d = 1; d <= daysInMonth; d++) {
-      const cur = new Date(year, month, d);
-      const iso = `${year}-${fuPad(month+1)}-${fuPad(d)}`;
-      const isSel = selIso === iso;
-      const isToday = cur.getTime() === today.getTime();
-      let bg = "transparent", color = "#334155", fw = "500", ring = "";
-      if (isSel) { bg = "#6366f1"; color = "#fff"; fw = "700"; }
-      else if (isToday) { ring = "box-shadow:inset 0 0 0 1.5px #c7d2fe;"; color = "#6366f1"; fw = "600"; }
-      const hover = isSel ? "" : `onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='${bg}'"`;
-      html += `<div onclick="pickFilterDate(${year},${month},${d})" ${hover} style="text-align:center;padding:8px 0;font-size:13px;font-weight:${fw};color:${color};background:${bg};border-radius:8px;cursor:pointer;${ring}transition:background .12s;">${d}</div>`;
+  function drpPresetRange(label){
+    const now=new Date();
+    const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const yest=new Date(today);yest.setDate(today.getDate()-1);
+    switch(label){
+      case"Today":return[today,today];
+      case"Yesterday":return[yest,yest];
+      case"Today and yesterday":return[yest,today];
+      case"Last 7 days":{const s=new Date(today);s.setDate(today.getDate()-6);return[s,today];}
+      case"Last 14 days":{const s=new Date(today);s.setDate(today.getDate()-13);return[s,today];}
+      case"Last 28 days":{const s=new Date(today);s.setDate(today.getDate()-27);return[s,today];}
+      case"Last 30 days":{const s=new Date(today);s.setDate(today.getDate()-29);return[s,today];}
+      case"This week":{const dow=today.getDay();const s=new Date(today);s.setDate(today.getDate()-(dow===0?6:dow-1));return[s,today];}
+      case"Last week":{const dow=today.getDay();const mon=new Date(today);mon.setDate(today.getDate()-(dow===0?6:dow-1)-7);const sun=new Date(mon);sun.setDate(mon.getDate()+6);return[mon,sun];}
+      case"This month":{return[new Date(today.getFullYear(),today.getMonth(),1),today];}
+      case"Last month":{const s=new Date(today.getFullYear(),today.getMonth()-1,1);const e=new Date(today.getFullYear(),today.getMonth(),0);return[s,e];}
+      case"Maximum":return[new Date(2000,0,1),today];
+      default:return[null,null];
     }
-    document.getElementById("filterCalGrid").innerHTML = html;
   }
 
-  function pickFilterDate(y, m, d) {
-    const iso = `${y}-${fuPad(m+1)}-${fuPad(d)}`;
-    document.getElementById(`date_${filterTarget}_val`).value = iso;
-    document.getElementById(`date_${filterTarget}_label`).textContent = fmtFilterLabel(iso);
-    document.getElementById(`date_${filterTarget}_label`).style.color = "#0f172a";
-    closeFilterCal();
-    document.getElementById("filterForm").submit();
+  function drpDetectPreset(){
+    if(!drpFrom||!drpTo)return null;
+    const f=drpIso(drpFrom),t=drpIso(drpTo);
+    for(const lbl of DRP_PRESETS){const[s,e]=drpPresetRange(lbl);if(s&&e&&drpIso(s)===f&&drpIso(e)===t)return lbl;}
+    return null;
   }
 
-  function clearFilterDate() {
-    document.getElementById(`date_${filterTarget}_val`).value = "";
-    const lbl = document.getElementById(`date_${filterTarget}_label`);
-    lbl.textContent = filterTarget === "from" ? "From date" : "To date";
-    lbl.style.color = "#475569";
-    closeFilterCal();
-    document.getElementById("filterForm").submit();
+  function drpUpdateBtn(){
+    const el=document.getElementById("drpLabel");if(!el)return;
+    if(!drpFrom){el.textContent="Select dates";return;}
+    const preset=drpDetectPreset();
+    if(preset){
+      el.textContent=preset;
+    }else if(drpTo){el.textContent=`${drpFmt(drpFrom)} - ${drpFmt(drpTo)}`;}
+    else{el.textContent=`From ${drpFmt(drpFrom)}`;}
   }
 
-  // init labels from existing values + close on outside click
-  document.addEventListener("DOMContentLoaded", () => {
-    ["from", "to"].forEach((w) => {
-      const v = document.getElementById(`date_${w}_val`)?.value;
-      if (v) { const lbl = document.getElementById(`date_${w}_label`); lbl.textContent = fmtFilterLabel(v); lbl.style.color = "#0f172a"; }
+  function drpGetRecent(){try{return JSON.parse(localStorage.getItem("drp_recent")||"[]");}catch{return[];}}
+  function drpSaveRecent(lbl){const r=drpGetRecent().filter(x=>x!==lbl);r.unshift(lbl);localStorage.setItem("drp_recent",JSON.stringify(r.slice(0,3)));}
+
+  function drpRenderPresets(){
+    const recent=drpGetRecent();
+    const ri=document.getElementById("drpRecentList");
+    const pi=document.getElementById("drpPresetList");
+    if(!ri||!pi)return;
+    const makeRow=lbl=>{
+      const active=lbl===drpActivePreset;
+      return`<div onclick="drpSelectPreset('${lbl}')" style="display:flex;align-items:center;gap:9px;padding:6px 14px;cursor:pointer;font-size:13px;color:#374151;transition:background .1s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+        <div style="width:16px;height:16px;border-radius:50%;border:2px solid ${active?'#1e293b':'#d1d5db'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          ${active?'<div style="width:7px;height:7px;border-radius:50%;background:#1e293b;"></div>':''}
+        </div>
+        <span style="font-weight:${active?'600':'400'}">${lbl}</span>
+      </div>`;
+    };
+    ri.innerHTML=recent.length?recent.map(makeRow).join(''):'<div style="padding:4px 14px 6px;font-size:12px;color:#94a3b8;font-style:italic;">None yet</div>';
+    pi.innerHTML=DRP_PRESETS.map(makeRow).join('');
+  }
+
+  function drpSelectPreset(lbl, apply=true){
+    const[s,e]=drpPresetRange(lbl);if(!s)return;
+    drpFrom=s;drpTo=e;drpActivePreset=lbl;drpSelStep=0;drpHoverD=null;
+    drpLY=s.getFullYear();drpLM=s.getMonth();
+    // If both months same, show previous on left so range is visible across two calendars
+    if(e&&s.getFullYear()===e.getFullYear()&&s.getMonth()===e.getMonth()){
+      drpLM--;if(drpLM<0){drpLM=11;drpLY--;}
+    }
+    if(apply)drpApply();
+    else drpRenderAll();
+  }
+
+  function drpNavMonth(delta){
+    drpLM+=delta;
+    if(drpLM>11){drpLM=0;drpLY++;}
+    if(drpLM<0){drpLM=11;drpLY--;}
+    drpRenderAll();
+  }
+
+  function drpBuildGrid(y,m){
+    const firstDay=new Date(y,m,1).getDay();
+    const dim=new Date(y,m+1,0).getDate();
+    const today=new Date();today.setHours(0,0,0,0);
+    const effFrom=drpSelStep===1&&drpHoverD&&drpHoverD<drpFrom?drpHoverD:drpFrom;
+    const effTo=drpSelStep===1&&drpHoverD?(drpHoverD>=drpFrom?drpHoverD:drpFrom):drpTo;
+    const isSingle=effFrom&&effTo&&effFrom.getTime()===effTo.getTime();
+    const RNG="#dbeafe";
+    let html="";
+    for(let i=0;i<firstDay;i++)html+=`<div style="width:30px;height:34px;"></div>`;
+    for(let d=1;d<=dim;d++){
+      const cur=new Date(y,m,d);const t=cur.getTime();
+      const isStart=effFrom&&t===effFrom.getTime();
+      const isEnd=effTo&&t===effTo.getTime();
+      const inRange=effFrom&&effTo&&cur>effFrom&&cur<effTo;
+      const isToday=t===today.getTime();
+      let circBg="transparent",circColor="#1e293b",circFw="400";
+      if(isStart||isEnd){circBg="#1e293b";circColor="#fff";circFw="700";}
+      else if(inRange){circColor="#1e40af";}
+      else if(isToday){circColor="#6366f1";circFw="600";}
+      let lBg="transparent",rBg="transparent";
+      if(!isSingle){
+        if(isStart&&effTo)rBg=RNG;
+        else if(isEnd&&effFrom)lBg=RNG;
+        else if(inRange){lBg=RNG;rBg=RNG;}
+      }
+      const ring=isToday&&!isStart&&!isEnd?"box-shadow:inset 0 0 0 1.5px #c7d2fe;":"";
+      const hevt=drpSelStep===1
+        ?`onmouseover="drpDoHover(${y},${m},${d})" onmouseleave="drpDoLeave()"`
+        :(isStart||isEnd?"":`onmouseover="this.querySelector('.drp-c').style.background='#f1f5f9'" onmouseleave="this.querySelector('.drp-c').style.background='transparent'"`);
+      html+=`<div onmousedown="drpDayDown(${y},${m},${d},event)" ${hevt} style="position:relative;display:flex;justify-content:center;align-items:center;height:34px;width:30px;cursor:pointer;user-select:none;">
+        <div style="position:absolute;top:3px;bottom:3px;left:0;width:15px;background:${lBg};pointer-events:none;"></div>
+        <div style="position:absolute;top:3px;bottom:3px;right:0;width:15px;background:${rBg};pointer-events:none;"></div>
+        <div class="drp-c" style="position:relative;z-index:1;width:28px;height:28px;border-radius:50%;background:${circBg};color:${circColor};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:${circFw};${ring}transition:background .1s;">${d}</div>
+      </div>`;
+    }
+    return html;
+  }
+
+  function drpRenderAll(){
+    const rY=drpLM===11?drpLY+1:drpLY, rM=drpLM===11?0:drpLM+1;
+    const ll=document.getElementById("drpLeftLabel"),rl=document.getElementById("drpRightLabel");
+    if(ll)ll.textContent=`${DRP_ML[drpLM]} ${drpLY}`;
+    if(rl)rl.textContent=`${DRP_ML[rM]} ${rY}`;
+    const lg=document.getElementById("drpLeftGrid"),rg=document.getElementById("drpRightGrid");
+    if(lg)lg.innerHTML=drpBuildGrid(drpLY,drpLM);
+    if(rg)rg.innerHTML=drpBuildGrid(rY,rM);
+    const cf=document.getElementById("drpCustomFrom"),ct=document.getElementById("drpCustomTo");
+    if(cf)cf.value=drpFrom?drpFmt(drpFrom):"";
+    if(ct)ct.value=drpTo?drpFmt(drpTo):"";
+    const cs=document.getElementById("drpCustomPreset");
+    if(cs)cs.value=drpActivePreset||"";
+    drpRenderPresets();
+  }
+
+  function drpDoHover(y,m,d){drpHoverD=new Date(y,m,d);drpRenderAll();}
+  function drpDoLeave(){drpHoverD=null;drpRenderAll();}
+
+  function drpDayDown(y,m,d,e){
+    if(e&&e.button!==0)return;
+    e&&e.preventDefault();
+    const picked=new Date(y,m,d);
+    if(drpSelStep===0){
+      // First touch: start selection
+      drpFrom=picked;drpTo=null;drpHoverD=null;drpSelStep=1;drpActivePreset=null;
+      drpRenderAll();
+    }else{
+      // Second click (not a drag): finalize immediately
+      if(picked<drpFrom){drpTo=drpFrom;drpFrom=picked;}else drpTo=picked;
+      drpSelStep=0;drpHoverD=null;drpActivePreset=drpDetectPreset();
+      drpRenderAll();
+    }
+  }
+
+  function drpOpen(e){
+    e.stopPropagation();
+    const panel=document.getElementById("drpPanel");
+    if(panel.style.display!=="none"){drpClose();return;}
+    drpSavedFrom=drpFrom;drpSavedTo=drpTo;drpSavedPreset=drpActivePreset;
+    panel.style.display="flex";
+    requestAnimationFrame(()=>{
+      const btn=document.getElementById("drpBtn");
+      const rect=btn.getBoundingClientRect();
+      const pw=panel.offsetWidth;
+      let left=rect.left+window.scrollX;
+      if(left+pw>window.innerWidth-8)left=window.innerWidth-pw-8+window.scrollX;
+      if(left<8)left=8+window.scrollX;
+      panel.style.left=`${left}px`;
+      panel.style.top=`${rect.bottom+window.scrollY+6}px`;
     });
+    drpRenderAll();
+  }
+
+  function drpClose(){
+    const p=document.getElementById("drpPanel");if(p)p.style.display="none";
+    drpSelStep=0;drpHoverD=null;
+  }
+
+  function drpCancel(){
+    drpFrom=drpSavedFrom;drpTo=drpSavedTo;drpActivePreset=drpSavedPreset;
+    drpClose();
+  }
+
+  function drpApply(){
+    if(!drpFrom){drpSelectPreset("Last 7 days",false);}
+    document.getElementById("date_from_val").value=drpFrom?drpIso(drpFrom):"";
+    document.getElementById("date_to_val").value=drpTo?drpIso(drpTo):"";
+    if(drpActivePreset)drpSaveRecent(drpActivePreset);
+    drpUpdateBtn();drpClose();
+    document.getElementById("filterForm").submit();
+  }
+
+  function drpCustomPresetChange(val){if(val)drpSelectPreset(val);}
+
+  function drpInit(){
+    drpFrom=drpParse(document.getElementById("date_from_val")?.value);
+    drpTo=drpParse(document.getElementById("date_to_val")?.value);
+    drpActivePreset=drpDetectPreset();
+    const now=new Date();
+    if(drpFrom){
+      drpLY=drpFrom.getFullYear();drpLM=drpFrom.getMonth();
+      // If same month for both, show prev month on left
+      if(!drpTo||(drpTo.getMonth()===drpLM&&drpTo.getFullYear()===drpLY)){
+        drpLM--;if(drpLM<0){drpLM=11;drpLY--;}
+      }
+    }else{
+      drpLM=now.getMonth()===0?11:now.getMonth()-1;
+      drpLY=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+    }
+    drpUpdateBtn();
+  }
+
+  document.addEventListener("DOMContentLoaded",()=>{ drpInit(); });
+  document.addEventListener("click",(e)=>{
+    const panel=document.getElementById("drpPanel");
+    if(panel&&panel.style.display!=="none"&&!panel.contains(e.target)&&!document.getElementById("drpBtn")?.contains(e.target))drpClose();
   });
-  document.addEventListener("click", (e) => {
-    const cal = document.getElementById("filterCal");
-    if (cal.style.display === "block" && !cal.contains(e.target) && !e.target.closest("[onclick^='openFilterCal']")) closeFilterCal();
+  // Drag-to-select: finalise on mouseup if hover moved to a different day
+  document.addEventListener("mouseup",()=>{
+    if(drpSelStep!==1||!drpHoverD)return;
+    if(drpHoverD.getTime()===drpFrom.getTime())return; // same cell = plain click, wait for 2nd click
+    const end=drpHoverD;
+    if(end<drpFrom){drpTo=drpFrom;drpFrom=end;}else drpTo=end;
+    drpSelStep=0;drpHoverD=null;drpActivePreset=drpDetectPreset();
+    drpRenderAll();
   });
 
   function closeLeadPanel() {
@@ -755,10 +1198,17 @@
     document.getElementById("panelSubtitle")?.remove();
   }
 
+  // Open the full New/Edit modal pre-filled with the panel's lead, in edit mode.
+  function editLeadFromPanel() {
+    if (!panelLead) return;
+    closeLeadPanel();
+    openLeadModal(panelLead);
+  }
+
   async function deleteLeadFromPanel() {
     if (panelLeadId == null) return;
     const name = document.getElementById("panelTitle").textContent;
-    if (!confirm(`Delete lead "${name}"? This cannot be undone.`)) return;
+    if (!await uiConfirm("Delete lead?", `Delete lead "${name}"? This cannot be undone.`, { confirmText: "Delete", danger: true })) return;
     await api(`leads/${panelLeadId}`, { method: "DELETE" });
     document.querySelector(`.lead-row[data-id="${panelLeadId}"]`)?.remove();
     closeLeadPanel();
@@ -766,11 +1216,11 @@
   document.getElementById("panelDeleteBtn")?.addEventListener("click", deleteLeadFromPanel);
 
   async function deleteLeadRow(id, name) {
-    if (!confirm(`Delete lead "${name}"? This cannot be undone.`)) return;
+    if (!await uiConfirm("Delete lead?", `Delete lead "${name}"? This cannot be undone.`, { confirmText: "Delete", danger: true })) return;
     try {
       await api(`leads/${id}`, { method: "DELETE" });
       document.querySelector(`.lead-row[data-id="${id}"]`)?.remove();
-    } catch (err) { alert(err.data?.message || "Delete failed."); }
+    } catch (err) { uiAlert(err.data?.message || "Delete failed.", { type: "error" }); }
   }
 
   async function changeSource(id, newSource) {
@@ -784,23 +1234,232 @@
   }
 
   // CSV import
-  document.getElementById("importFile")?.addEventListener("change", async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    document.getElementById("importLabel").textContent = "Importing…";
+  // Quote-aware parser: strips BOM, auto-detects delimiter (, ; or tab),
+  // handles delimiters/newlines inside "quoted" fields and "" escapes.
+  function parseCSV(text) {
+    text = text.replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const firstLine = text.split("\n", 1)[0] || "";
+    // Pick the delimiter that appears most on the header line.
+    const delim = [",", ";", "\t"]
+      .map((d) => [d, firstLine.split(d).length])
+      .sort((a, b) => b[1] - a[1])[0][0];
+    const rows = []; let row = [], field = "", inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inQ) {
+        if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+        else field += ch;
+      } else if (ch === '"') inQ = true;
+      else if (ch === delim) { row.push(field); field = ""; }
+      else if (ch === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+      else field += ch;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows.filter((r) => !(r.length === 1 && r[0].trim() === ""));
+  }
+  function openImportModal() { document.getElementById("importOverlay").style.display = "flex"; }
+  function closeImportModal() {
+    document.getElementById("importOverlay").style.display = "none";
+    document.getElementById("importFile").value = "";
+  }
+  document.getElementById("importOverlay")?.addEventListener("click", (e) => {
+    if (e.target.id === "importOverlay") closeImportModal();
+  });
+  async function runImport() {
+    const file = document.getElementById("importFile").files[0];
+    if (!file) { uiAlert("Choose a CSV file first.", { type: "info", title: "No file selected" }); return; }
+    const btn = document.getElementById("importGo");
+    btn.disabled = true; btn.textContent = "Importing…";
     try {
-      const text = await file.text();
-      const [header, ...rows] = text.trim().split(/\r?\n/);
-      const cols = header.split(",").map((c) => c.trim().toLowerCase().replace(/\s+/g, "_"));
-      const leads = rows.map((row) => {
-        const vals = row.split(",");
-        return Object.fromEntries(cols.map((c, i) => [c, vals[i]?.trim()]).filter(([, v]) => v));
-      });
+      const table = parseCSV(await file.text());
+      if (table.length < 2) throw { data: { message: "CSV has no data rows." } };
+      const cols = table[0].map((c) => c.trim().toLowerCase().replace(/\s+/g, "_"));
+      const leads = table.slice(1).map((vals) =>
+        Object.fromEntries(cols.map((c, i) => [c, (vals[i] ?? "").trim()]).filter(([, v]) => v))
+      );
       const res = await api("leads-import", { method: "POST", body: { leads } });
-      alert(res.message); location.reload();
-    } catch (err) { alert(err.data?.message || "Import failed."); }
-    finally { document.getElementById("importLabel").textContent = "Import CSV"; e.target.value = ""; }
+      await uiAlert(res.message, { type: "success", title: "Import complete" }); location.reload();
+    } catch (err) { uiAlert(err.data?.message || "Import failed.", { type: "error" }); }
+    finally { btn.disabled = false; btn.textContent = "Import"; }
+  }
+
+  // Today's Follow-ups popup — loads live each time it opens.
+  function esc(s) { return (s == null ? "" : String(s)).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  function priorityBadge(p) {
+    const cls = p === "high" ? "bg-red-100 text-red-700"
+      : p === "medium" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500";
+    return `<span class="rounded-full px-2 py-0.5 text-xs font-medium ${cls}">${esc(p)}</span>`;
+  }
+  let currentFuItems = [];
+  function renderTodayFu(items) {
+    currentFuItems = items;
+    const list = document.getElementById("todayFuList");
+    document.getElementById("todayFuCount").textContent = items.length;
+    document.getElementById("todayFuBtnCount").textContent = items.length;
+    if (!items.length) {
+      list.innerHTML = '<div class="rounded-lg bg-white p-6 text-center text-sm text-slate-400" style="border:1px solid #fef3c7;">No follow-ups due today.</div>';
+      return;
+    }
+    list.innerHTML = items.map((t) => `
+      <div class="flex items-center gap-3 rounded-lg bg-white p-3" style="border:1px solid #fef3c7;">
+        <input type="checkbox" id="fuChk_${t.id}" onchange="completeFollowup(${t.id})" class="h-5 w-5 accent-slate-900" title="Mark done" />
+        <div class="min-w-0 flex-1">
+          <div class="font-medium text-slate-900">${esc(t.title)}</div>
+          <div class="text-xs text-slate-400">
+            ${t.lead_id ? `<a href="javascript:void(0)" onclick="openLeadFromFu(${t.lead_id})" class="text-slate-900 hover:underline">${esc(t.lead_name)}</a> · ` : ""}${esc(t.assignee)}${t.due_time ? ` · <span class="${t.overdue ? "font-semibold text-red-500" : ""}">due ${esc(t.due_time)}</span>` : ""}
+          </div>
+        </div>
+        ${priorityBadge(t.priority)}
+      </div>`).join("");
+  }
+  async function loadTodayFu() {
+    const list = document.getElementById("todayFuList");
+    list.innerHTML = '<div class="p-6 text-center text-sm text-slate-400">Loading…</div>';
+    try { renderTodayFu(await api("followups/today")); }
+    catch (e) { list.innerHTML = '<div class="p-6 text-center text-sm text-red-500">Could not load follow-ups.</div>'; }
+  }
+  function openTodayFollowups() {
+    document.getElementById("todayFuOverlay").style.display = "flex";
+    lucide.createIcons();
+    loadTodayFu();
+  }
+  function closeTodayFollowups() {
+    document.getElementById("todayFuOverlay").style.display = "none";
+  }
+  // Lead name in popup -> close popup, open the lead side panel (not full page).
+  function openLeadFromFu(id) {
+    closeTodayFollowups();
+    openLeadPanel(id);
+  }
+
+  async function updateLeadFuCell(leadId) {
+    const cell = document.getElementById(`fuCell_${leadId}`);
+    if (!cell) return;
+    try {
+      const { label } = await api(`leads/${leadId}/next-followup`);
+      cell.innerHTML = label
+        ? `<span style="color:#dc2626;font-weight:600;">Follow-up ${esc(label)}</span>`
+        : '<span class="text-slate-400">-</span>';
+    } catch (e) { /* leave cell as-is */ }
+  }
+  async function markFollowupDone(id) {
+    const t = currentFuItems.find((x) => x.id === id);
+    const leadId = t ? t.lead_id : null;
+    try {
+      await api(`tasks/${id}`, { method: "PUT", body: { status: "completed" } });
+      await loadTodayFu();
+      if (leadId) await updateLeadFuCell(leadId);
+    } catch (e) { uiAlert("Could not update follow-up.", { type: "error" }); }
+  }
+
+  // Always ask to log activity before completing follow-up
+  function completeFollowup(id) {
+    const t = currentFuItems.find((x) => x.id === id);
+    if (!t) {
+      markFollowupDone(id);
+      return;
+    }
+    if (t.lead_id) {
+      const chk = document.getElementById(`fuChk_${id}`);
+      if (chk) chk.checked = false;
+      openLogActivity(t);
+      return;
+    }
+    markFollowupDone(id);
+  }
+
+  // --- Log activity before completing ---
+  let pendingFu = null;
+  function openLogActivity(t) {
+    pendingFu = t;
+    document.getElementById("logActLead").textContent = `For ${t.lead_name} — no activity logged in the last 20 min.`;
+    document.getElementById("logActType").value = "call";
+    document.getElementById("logActSubject").value = "";
+    document.getElementById("logActNote").value = "";
+    document.getElementById("logActOverlay").style.display = "flex";
+    lucide.createIcons();
+    document.getElementById("logActSubject").focus();
+  }
+  function closeLogActivity() {
+    document.getElementById("logActOverlay").style.display = "none";
+    pendingFu = null;
+  }
+  async function saveLogActivityAndComplete() {
+    if (!pendingFu) return;
+    const subject = document.getElementById("logActSubject").value.trim();
+    if (!subject) { document.getElementById("logActSubject").focus(); return; }
+    const btn = document.getElementById("logActSaveBtn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      await api("activities", { method: "POST", body: {
+        lead_id: pendingFu.lead_id,
+        type: document.getElementById("logActType").value,
+        subject,
+        description: document.getElementById("logActNote").value.trim(),
+      } });
+      const taskId = pendingFu.id;
+      closeLogActivity();
+      await markFollowupDone(taskId);
+      location.reload();
+    } catch (err) {
+      uiAlert(err.data?.message || "Could not log activity.", { type: "error" });
+    } finally { btn.disabled = false; btn.textContent = "Save & complete"; }
+  }
+
+  // --- Add follow-up (due today) ---
+  const FU_MY_ID = {{ me.id }};
+  function toggleFollowupForm() {
+    const f = document.getElementById("followupForm");
+    f.classList.toggle("hidden");
+    if (!f.classList.contains("hidden")) document.getElementById("fu_title").focus();
+  }
+  document.getElementById("followupForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const title = document.getElementById("fu_title").value.trim();
+    if (!title) return;
+    const due = new Date();
+    const time = document.getElementById("fu_due").value;  // "HH:MM" or ""
+    if (time) { const [h, m] = time.split(":"); due.setHours(+h, +m, 0, 0); }
+    const assignee = document.getElementById("fu_assignee");
+    try {
+      await api("tasks", { method: "POST", body: {
+        title,
+        priority: document.getElementById("fu_priority").value,
+        due_at: due.toISOString(),
+        assigned_to: assignee ? Number(assignee.value) : FU_MY_ID,
+      } });
+      document.getElementById("fu_title").value = "";
+      document.getElementById("followupForm").classList.add("hidden");
+      loadTodayFu();
+    } catch (err) { uiAlert(err.data?.message || "Could not add follow-up.", { type: "error" }); }
   });
 
   lucide.createIcons();
+
+  // All Products popup
+  const _prodsPopup = document.createElement("div");
+  _prodsPopup.id = "prodsPopup";
+  _prodsPopup.style.cssText = "position:fixed;z-index:9999;background:#fff;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);padding:16px 18px;min-width:180px;max-width:280px;display:none;";
+  _prodsPopup.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><span style="font-size:13px;font-weight:700;color:#1e293b;">Products</span><button onclick="document.getElementById('prodsPopup').style.display='none'" style="background:none;border:none;font-size:18px;color:#94a3b8;cursor:pointer;line-height:1;">&times;</button></div><div id="prodsPopupList"></div>`;
+  document.body.appendChild(_prodsPopup);
+
+  document.addEventListener("click", e => {
+    const p = document.getElementById("prodsPopup");
+    if (p && !p.contains(e.target) && !e.target.closest("[data-prods-btn]")) p.style.display = "none";
+  });
+
+  function showProdsPopup(btn, names) {
+    const popup = document.getElementById("prodsPopup");
+    const list = document.getElementById("prodsPopupList");
+    list.innerHTML = names.map(n => `<span style="display:inline-block;background:#f1f5f9;padding:4px 10px;border-radius:7px;font-size:12px;font-weight:500;color:#475569;margin:3px 3px 3px 0;">${n}</span>`).join("");
+    const rect = btn.getBoundingClientRect();
+    popup.style.display = "block";
+    const pw = popup.offsetWidth;
+    let left = rect.left;
+    if (left + pw > window.innerWidth - 12) left = window.innerWidth - pw - 12;
+    popup.style.left = left + "px";
+    popup.style.top = (rect.bottom + 6 + window.scrollY) + "px";
+    btn.setAttribute("data-prods-btn", "1");
+  }
 </script>
 {% endblock %}

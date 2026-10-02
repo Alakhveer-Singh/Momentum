@@ -1,34 +1,186 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mx-auto max-w-lg space-y-4">
-  <h1 class="text-xl font-bold">My Profile</h1>
-  <form id="profileForm" class="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
-    <div><label class="mb-1 block text-sm font-medium">Name</label><input id="p_name" value="{{ me.name }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></div>
-    <div><label class="mb-1 block text-sm font-medium">Email</label><input value="{{ me.email }}" disabled class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm" /></div>
-    <div><label class="mb-1 block text-sm font-medium">Phone</label><input id="p_phone" value="{{ me.phone }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></div>
-    <hr class="border-slate-100" />
-    <div class="text-sm font-semibold">Change password</div>
-    <input id="p_current" type="password" placeholder="Current password" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-    <input id="p_new" type="password" placeholder="New password (min 8)" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-    <input id="p_confirm" type="password" placeholder="Confirm new password" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-    <div id="p_msg" class="hidden rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700"></div>
-    <div id="p_error" class="hidden rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600"></div>
-    <button class="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Save changes</button>
-  </form>
+<style>
+  .pf-wrap { max-width: 640px; margin: 0 auto; }
+  .pf-group-label { font-size: 14px; font-weight: 600; color: #64748b; margin: 22px 4px 10px; }
+  html.dark .pf-group-label { color: #94a3b8; }
+  .pf-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
+  html.dark .pf-card { background: #1e293b; border-color: #334155; }
+  .pf-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 18px; background: none; border: none; cursor: pointer; text-align: left; transition: background .12s; }
+  .pf-row + .pf-row { border-top: 1px solid #f1f5f9; }
+  html.dark .pf-row + .pf-row { border-top-color: #334155; }
+  .pf-row:hover { background: #f8fafc; }
+  html.dark .pf-row:hover { background: #334155; }
+  .pf-ico { width: 38px; height: 38px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #0f172a; flex-shrink: 0; }
+  html.dark .pf-ico { background: #0f172a; color: #f1f5f9; }
+  .pf-row-main { flex: 1; min-width: 0; }
+  .pf-row-title { display: block; font-size: 15px; font-weight: 600; color: #0f172a; }
+  html.dark .pf-row-title { color: #f1f5f9; }
+  .pf-row-sub { display: block; font-size: 13px; color: #94a3b8; margin-top: 2px; }
+  .pf-chev { color: #cbd5e1; transition: transform .18s; flex-shrink: 0; }
+  .pf-row.open .pf-chev { transform: rotate(90deg); }
+  .pf-panel { display: none; padding: 4px 18px 18px; }
+  .pf-panel.open { display: block; }
+  .pf-field { margin-top: 12px; }
+  .pf-field label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 5px; }
+  html.dark .pf-field label { color: #cbd5e1; }
+  .pf-field input { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font-size: 14px; color: #0f172a; background: #fff; outline: none; box-sizing: border-box; }
+  .pf-field input:focus { border-color: #0f172a; }
+  .pf-field input:disabled { background: #f8fafc; color: #94a3b8; }
+  .pf-save { margin-top: 14px; width: 100%; border: none; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; color: #fff; background: #0f172a; cursor: pointer; }
+  .pf-save:hover { background: #1e293b; }
+  .pf-msg { margin-top: 12px; border-radius: 10px; padding: 9px 12px; font-size: 13px; display: none; }
+  .pf-msg.ok { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; display: block; }
+  .pf-msg.err { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; display: block; }
+  .pf-danger .pf-ico { background: #fef2f2; color: #dc2626; }
+  .pf-danger .pf-row-title { color: #dc2626; }
+</style>
+
+<div class="pf-wrap">
+  <!-- Header -->
+  <a href="/" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900"><i data-lucide="arrow-left" class="h-4 w-4"></i> Back</a>
+  <div class="mt-4 flex items-start justify-between">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">{{ me.name }}</h1>
+      <p class="mt-1 text-slate-500" id="pf_handle">{{ me.email }}</p>
+    </div>
+    <form method="post" action="/profile/avatar" enctype="multipart/form-data" id="avatarForm">
+      {% csrf_token %}
+      <label for="avatarInput" title="Change photo" style="position:relative;display:block;width:72px;height:72px;border-radius:50%;cursor:pointer;overflow:hidden;flex-shrink:0;">
+        {% if me.avatar %}
+          <img src="{{ me.avatar.url }}" alt="{{ me.name }}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;display:block;" />
+        {% else %}
+          <span style="display:flex;width:72px;height:72px;border-radius:50%;background:#0f172a;color:#fff;font-size:26px;font-weight:700;align-items:center;justify-content:center;">{{ me.name|slice:":1"|upper }}</span>
+        {% endif %}
+        <span style="position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;background:linear-gradient(to top,rgba(0,0,0,.45),transparent 55%);opacity:0;transition:opacity .15s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+          <i data-lucide="camera" style="width:16px;height:16px;color:#fff;"></i>
+        </span>
+      </label>
+      <input type="file" id="avatarInput" name="avatar" accept="image/*" style="display:none;" onchange="document.getElementById('avatarForm').submit()" />
+    </form>
+  </div>
+
+  {% if me.role == 'admin' %}
+  <!-- Workspace -->
+  <div class="pf-group-label">Workspace</div>
+  <div class="pf-card">
+    <a href="/users" class="pf-row">
+      <span class="pf-ico"><i data-lucide="shield-check" class="h-5 w-5"></i></span>
+      <span class="pf-row-main"><span class="pf-row-title">Team &amp; Roles</span><span class="pf-row-sub">Manage teammates and access</span></span>
+      <i data-lucide="chevron-right" class="pf-chev h-5 w-5"></i>
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Account -->
+  <div class="pf-group-label">Account</div>
+  <div class="pf-card">
+    <button type="button" class="pf-row" onclick="pfToggle('details')">
+      <span class="pf-ico"><i data-lucide="user" class="h-5 w-5"></i></span>
+      <span class="pf-row-main"><span class="pf-row-title">Personal details</span><span class="pf-row-sub">Name &amp; phone number</span></span>
+      <i data-lucide="chevron-right" class="pf-chev h-5 w-5"></i>
+    </button>
+    <div class="pf-panel" id="panel-details">
+      <div class="pf-field"><label>Name</label><input id="p_name" value="{{ me.name }}" /></div>
+      <div class="pf-field"><label>Email</label><input value="{{ me.email }}" disabled /></div>
+      <div class="pf-field"><label>Phone</label><input id="p_phone" value="{{ me.phone }}" placeholder="Add phone number" /></div>
+      <div class="pf-msg" id="details_msg"></div>
+      <button class="pf-save" onclick="saveDetails()">Save details</button>
+    </div>
+
+    <button type="button" class="pf-row" onclick="pfToggle('pwd')">
+      <span class="pf-ico"><i data-lucide="lock" class="h-5 w-5"></i></span>
+      <span class="pf-row-main"><span class="pf-row-title">Change password</span><span class="pf-row-sub">Update your sign-in password</span></span>
+      <i data-lucide="chevron-right" class="pf-chev h-5 w-5"></i>
+    </button>
+    <div class="pf-panel" id="panel-pwd">
+      <div class="pf-field"><label>Current password</label><input id="p_current" type="password" placeholder="Current password" /></div>
+      <div class="pf-field"><label>New password</label><input id="p_new" type="password" placeholder="At least 8 characters" /></div>
+      <div class="pf-field"><label>Confirm new password</label><input id="p_confirm" type="password" placeholder="Re-enter new password" /></div>
+      <div class="pf-msg" id="pwd_msg"></div>
+      <button class="pf-save" onclick="savePassword()">Update password</button>
+    </div>
+  </div>
+
+  <!-- Preferences -->
+  <div class="pf-group-label">Preferences</div>
+  <div class="pf-card">
+    <button type="button" class="pf-row" onclick="toggleTheme()">
+      <span class="pf-ico"><i data-lucide="moon" class="h-5 w-5"></i></span>
+      <span class="pf-row-main"><span class="pf-row-title">Appearance</span><span class="pf-row-sub" id="pf_theme_sub">Light / Dark mode</span></span>
+      <i data-lucide="chevron-right" class="pf-chev h-5 w-5"></i>
+    </button>
+  </div>
+
+  <!-- Help -->
+  <div class="pf-group-label">Help</div>
+  <div class="pf-card">
+    <button type="button" class="pf-row" onclick="startTour()">
+      <span class="pf-ico"><i data-lucide="compass" class="h-5 w-5"></i></span>
+      <span class="pf-row-main"><span class="pf-row-title">Take a tour</span><span class="pf-row-sub">Replay the guided walkthrough</span></span>
+      <i data-lucide="chevron-right" class="pf-chev h-5 w-5"></i>
+    </button>
+  </div>
+
+  <!-- Session -->
+  <div class="pf-group-label">Session</div>
+  <div class="pf-card pf-danger">
+    <a href="/logout" class="pf-row">
+      <span class="pf-ico"><i data-lucide="log-out" class="h-5 w-5"></i></span>
+      <span class="pf-row-main"><span class="pf-row-title">Log out</span></span>
+      <i data-lucide="chevron-right" class="pf-chev h-5 w-5"></i>
+    </a>
+  </div>
 </div>
 {% endblock %}
 {% block page_js %}
 <script>
   const $ = (id) => document.getElementById(id);
-  $("profileForm").addEventListener("submit", async (e) => {
-    e.preventDefault(); $("p_msg").classList.add("hidden"); $("p_error").classList.add("hidden");
-    const body = { name: $("p_name").value, phone: $("p_phone").value || null };
-    if ($("p_new").value) { body.password = $("p_new").value; body.password_confirmation = $("p_confirm").value; body.current_password = $("p_current").value; }
+
+  // Derive @handle from the email local part.
+  (function () {
+    const email = "{{ me.email|escapejs }}";
+    const handle = email.split("@")[0];
+    if (handle) $("pf_handle").textContent = "@" + handle;
+    // reflect current theme in the appearance subtitle
+    const sub = $("pf_theme_sub");
+    const upd = () => sub.textContent = document.documentElement.classList.contains("dark") ? "Dark mode · tap to switch" : "Light mode · tap to switch";
+    upd();
+    const obs = new MutationObserver(upd);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  })();
+
+  function pfToggle(key) {
+    const panel = $("panel-" + key);
+    const row = panel.previousElementSibling;
+    const open = panel.classList.toggle("open");
+    row.classList.toggle("open", open);
+  }
+
+  function showMsg(el, text, ok) {
+    el.textContent = text;
+    el.className = "pf-msg " + (ok ? "ok" : "err");
+  }
+
+  async function saveDetails() {
     try {
-      await api("auth/profile", { method: "PUT", body });
-      $("p_msg").textContent = "Profile updated."; $("p_msg").classList.remove("hidden");
-      ["p_current","p_new","p_confirm"].forEach((k) => ($(k).value = ""));
-    } catch (err) { $("p_error").textContent = err.data?.message || "Update failed."; $("p_error").classList.remove("hidden"); }
-  });
+      await api("auth/profile", { method: "PUT", body: { name: $("p_name").value, phone: $("p_phone").value || null } });
+      showMsg($("details_msg"), "Details saved.", true);
+    } catch (err) { showMsg($("details_msg"), err.data?.message || "Update failed.", false); }
+  }
+
+  async function savePassword() {
+    if (!$("p_new").value) { showMsg($("pwd_msg"), "Enter a new password.", false); return; }
+    try {
+      await api("auth/profile", { method: "PUT", body: {
+        name: $("p_name").value,
+        current_password: $("p_current").value,
+        password: $("p_new").value,
+        password_confirmation: $("p_confirm").value,
+      } });
+      showMsg($("pwd_msg"), "Password updated.", true);
+      ["p_current", "p_new", "p_confirm"].forEach((k) => ($(k).value = ""));
+    } catch (err) { showMsg($("pwd_msg"), err.data?.message || "Update failed.", false); }
+  }
 </script>
 {% endblock %}
