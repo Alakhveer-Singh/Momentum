@@ -381,3 +381,14 @@ footer a:hover{color:var(--ink)}
 .due.over{color:var(--ink);font-weight:700}
 .av{background:var(--bg-3);color:var(--ink);border:1px solid var(--line-2)}
 .toast .live{box-shadow:0 0 8px var(--accent)}
+
+/* ── Brand color layer ── */
+:root{--accent:#34d399;--accent-2:#5eead4;--amber:#34d399;--ember:#5eead4;--accent-soft:rgba(52,211,153,.12);--glow:rgba(52,211,153,.45);--c1:#34d399;--c2:#5eead4}
+:root[data-theme="light"]{--accent:#047857;--accent-2:#0f766e;--amber:#047857;--ember:#0f766e;--accent-soft:rgba(4,120,87,.09);--glow:rgba(4,120,87,.32);--c1:#047857;--c2:#0f766e}
+.btn-primary,[data-theme="light"] .btn-primary{background:linear-gradient(135deg,var(--c1),var(--c2));color:#0b0f12;box-shadow:0 10px 40px -10px var(--glow),inset 0 1px 0 rgba(255,255,255,.35)}
+[data-theme="light"] .btn-primary{color:#fff}
+.hero::before,[data-theme="light"] .hero::before{background:radial-gradient(40% 50% at 50% 30%,rgba(52,211,153,.30),transparent 70%),radial-gradient(30% 40% at 20% 10%,rgba(45,212,191,.22),transparent 70%),radial-gradient(30% 40% at 85% 20%,rgba(52,211,153,.16),transparent 70%)}
+h1 em,h2 em,em.s{background:linear-gradient(120deg,var(--c1),var(--c2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.eyebrow{color:var(--accent)}
+h1 em:has(.w),h2 em:has(.w),em.s:has(.w){background:none;color:inherit}
+h1 em .w,h2 em .w,em.s .w{padding:0 .1em .22em;margin:0 -.1em -.22em;background:linear-gradient(120deg,var(--c1),var(--c2));-webkit-background-clip:text;background-clip:text;color:transparent}
